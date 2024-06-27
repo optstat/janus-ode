@@ -11,6 +11,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 #add_definitions(-DDEBUG)
 
 enable_testing()
+# Find libtorch.  Modify this line to find your own libtorch installation.
+set(Torch_DIR "/home/panos/Applications/libtorch/share/cmake/Torch")
 # Find libtorch
 find_package(Torch REQUIRED)
 
