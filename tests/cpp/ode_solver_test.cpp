@@ -117,20 +117,20 @@ torch::Tensor vdpjac(const torch::Tensor& y,
   torch::Tensor dydt = y*0.0;
   torch::Tensor jac = torch::zeros({4,4}, torch::kFloat64); 
   //the dynamics are rows and the state/costate are columns
-  jac.index_put_({Slice(), 0, 3}, 1.0);
+  jac.index_put_({Slice(), 0, 1}, -4*p2*(x2*(1-x1*x1)-x1)*(-2*x1*x2-1)/W);
+  jac.index_put_({Slice(), 0, 2},  -2 * p2*p2 * ((1 - x1*x1) * x2 - x1) * (-2 * x1 * x2 - 1) / W);
+  jac.index_put_({Slice(), 0, 3}, -2 * p2*p2 * ((1 - x1*x1) * x2 - x1) * (-2 * x1 * x2 - 1) / W);
+  
+  jac.index_put_({Slice(), 1, 0}, 1.0);
+  jac.index_put_({Slice(), 1, 1}, -4*p2*((1 - x1*x1)*x2 - x1)*(1 - x1*x1)/W);
+  jac.index_put_({Slice(), 1, 2}, -2*p2*p2*((-2*x1)*((1 - x1*x1)*x2 - x1) + (1 - x1*x1)*(-2*x1*x2 - 1))/W);
+  jac.index_put_({Slice(), 1, 3}, -2*p2*p2*(1 - x1*x1).pow(2)/W);
 
-  jac.index_put_({Slice(), 1, 1}, -2*(x2*(1-x1*x1)-x1).pow(2)/W);
-  jac.index_put_({Slice(), 1, 2}, -4*p2*(x2*(1-x1*x1)-x1)*(-2*x1*x2-1)/W);
-  jac.index_put_({Slice(), 1, 3}, -4*p2*(x2*(1-x1*x1)-x1)*(1-x1*x1)/W);
+  jac.index_put_({Slice(), 2, 3}, 1.0);
 
-  jac.index_put_({Slice(), 2, 2}, (-2*p2*p2/W)*((-2*x1*x2-1).pow(2)+(1-x1*x1)*x2-x1)*(2*x2));
-  jac.index_put_({Slice(), 2, 3}, (-2*p2*p2/W)*((1-x1*x1)*((-2*x1*x2-1)+((1-x1*x1)*x2-x1)*(-2*x1))));
-  jac.index_put_({Slice(), 2, 0}, 1.0);
-  jac.index_put_({Slice(), 2, 1}, (-4*p2/W)*((1-x1*x1)*x2-x1)*((-2*x1*x2-1)));
-
-  jac.index_put_({Slice(), 3, 1},-4*p2*((1-x1*x1)*x2-x1)*((1-x1*x1))/W);
-  jac.index_put_({Slice(), 3, 2}, (-2*p2*p2/W)*((-2*x1*x2-1)*(1-x1*x1)+((1-x1*x1)*x2-x1)*(-2*x1)));
-  jac.index_put_({Slice(), 3, 3}, -2*p2*p2/W*((1-x1*x1).pow(2)));
+  jac.index_put_({Slice(), 3, 1}, -2*(x2*(1 - x1*x1) - x1).pow(2)/W);
+  jac.index_put_({Slice(), 3, 2}, -4*p2*(x2*(1 - x1*x1) - x1)*(-2*x1*x2 - 1)/W);
+  jac.index_put_({Slice(), 3, 3}, -4*p2*(x2*(1 - x1*x1) - x1)*(1 - x1*x1)/W);
 
 
   return jac;
