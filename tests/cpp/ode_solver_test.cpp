@@ -635,7 +635,8 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
 
     
     auto dp0pxH = torch::einsum("mij, mjk->mik", {pxpxHval, dxdp0})+
-                  torch::einsum("mij, mjk->mik", {pppxHval, dpdp0});
+                  //****Note here that the index wrt is i and the index wrt p is j****
+                  torch::einsum("mij, mjk->mik", {pppxHval, dpdp0});  
     //std::cerr << "actual dp0pxH=" << dydt.d.index({Slice(), Slice(0,2)}) << std::endl;
     //std::cerr << "inferred dp0pxH=" << dp0pxH << std::endl;
     EXPECT_TRUE(torch::allclose(dp0pxH, dydt.d.index({Slice(), Slice(0, 2), Slice()})));
