@@ -213,57 +213,23 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     //We need to check the dual part of the dynamics against the implicit method
     auto x = yted.r.index({Slice(), Slice(2, 4)});
     auto p = yted.r.index({Slice(), Slice(0, 2)});
-    auto pHppval = ppH<double>(x, p, W, H);  //dot{x}
-    EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(2, 4)}), pHppval));
-    auto pHpxval = pxH<double>(x, p, W, H); //dot{p}
-    EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(0, 2)}), pHpxval));
-
-
-
-    //Now for the dual part of the sensitivities
-    auto dxdp0 = yted.d.index({Slice(), Slice(2, 4), Slice()});
-    //std::cerr << "dxdp0=" << dxdp0 << std::endl;
-    auto dpdp0 = yted.d.index({Slice(), Slice(0, 2), Slice()});
-    //std::cerr << "dpdp0=" << dpdp0 << std::endl;
-    //Now for the second order sensitivities
-    auto ppppHval = ppppH<double>(x, p, W, H);
-    auto pxpxHval = pxpxH<double>(x, p, W, H);
-    auto pxppHval = pxppH<double>(x, p, W, H);
-    auto pppxHval = pppxH<double>(x, p, W, H);
-    std::cerr << "ppppHval=" << ppppHval << std::endl;
-    std::cerr << "pxpxHval=" << pxpxHval << std::endl;
-    //std::cerr << "pxppHval=" << pxppHval << std::endl;
-    //std::cerr << "pppxHval=" << pppxHval << std::endl;
-    EXPECT_TRUE(torch::allclose(pppxHval, pxppHval.transpose(1, 2)));
-
+    auto ppHval = ppH<double>(x, p, W, H);  //dot{x}
+    EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(2, 4)}), ppHval));
+    auto pxHval = pxH<double>(x, p, W, H); //dot{p}
+    EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(0, 2)}), pxHval));
+    //Now compare with the APIs
     
-    auto dp0pxH = torch::einsum("mij, mjk->mik", {pxpxHval, dxdp0})+
-                  //****Note here that the index wrt is i and the index wrt p is j****
-                  torch::einsum("mij, mjk->mik", {pppxHval, dpdp0});  
-    //std::cerr << "actual dp0pxH=" << dydt.d.index({Slice(), Slice(0,2)}) << std::endl;
-    //std::cerr << "inferred dp0pxH=" << dp0pxH << std::endl;
-    EXPECT_TRUE(torch::allclose(dp0pxH, dydt.d.index({Slice(), Slice(0, 2), Slice()})));
+    auto implDyns = evalDyns<double>(yted, W, H);
+    std::cerr << "implDyns=";
+    janus::print_dual(implDyns);
+    std::cerr << "dydt=";
+    janus::print_dual(dydt);
+    EXPECT_TRUE(torch::allclose(dydt.r, implDyns.r));
+    EXPECT_TRUE(torch::allclose(dydt.d, implDyns.d));
 
-    auto ppppppHval = ppppppH<double>(x, p, W, H);
-    std::cerr << "ppppppHval=" << ppppppHval << std::endl;
- 
-    auto pxpxpxHval = pxpxpxH<double>(x, p, W, H);
-    std::cerr << "pxpxpxHval=" << pxpxpxHval << std::endl;
 
-    auto pppppxHval = pppppxH<double>(x, p, W, H);
-    std::cerr << "pppppxHval=" << pppppxHval << std::endl;
 
-    auto pppxpxHval = pppxpxH<double>(x, p, W, H);
-    std::cerr << "pppxpxHval=" << pppxpxHval << std::endl;
 
-    auto pxpppxHval = pxpppxH<double>(x, p, W, H);
-    std::cerr << "pxpppxHval=" << pxpppxHval << std::endl;
-
-    auto pxpxppHval = pxpxppH<double>(x, p, W, H);
-    std::cerr << "pxpxppHval=" << pxpxppHval << std::endl;
-
-    auto pxppppHval = pxppppH<double>(x, p, W, H);
-    std::cerr << "pxppppHval=" << pxppppHval << std::endl;
 
     
 }

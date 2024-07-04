@@ -50,7 +50,7 @@ template<typename T>
 torch::Tensor ppppH(const torch::Tensor &x, 
                     const torch::Tensor &p, 
                     T W,
-                    torch::Tensor (*H)(const torch::Tensor&, const torch::Tensor&, T))
+                    std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for x and no gradient tracking for p
     auto xt = x.clone().detach().set_requires_grad(false);
@@ -99,7 +99,7 @@ template<typename T>
 torch::Tensor pxpxH(const torch::Tensor &x, 
                     const torch::Tensor &p, 
                     T W,
-                    torch::Tensor (*H)(const torch::Tensor&, const torch::Tensor&, T))
+                    std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for x and no gradient tracking for p
     auto xt = x.clone().detach().set_requires_grad(true);
@@ -745,12 +745,12 @@ torch::Tensor pxppppH(const torch::Tensor &x,
 }
 
 template<typename T>
-TensorDual dyns(const TensorDual & y, T W, std::function<torch::Tensor(torch::Tensor, torch::Tensor, T)> H)
+TensorDual evalDyns(const TensorDual &y, T W, std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     int M = y.r.size(0);
     int N = y.r.size(1)/2; //The dual tensor y contains [p,x] in strict order
-    auto x = y.index({Slice(), Slice(0, N)});
-    auto p = y.index({Slice(), Slice(N, 2*N)});
+    auto p = y.index({Slice(), Slice(0, N)});
+    auto x = y.index({Slice(), Slice(N, 2*N)});
     // Compute the Hamiltonian value
     auto Hvalue = H(x.r, p.r, W);
 
@@ -784,7 +784,7 @@ TensorDual dyns(const TensorDual & y, T W, std::function<torch::Tensor(torch::Te
 
 
 template<typename T>
-TensorMatDual jac(const TensorDual & y, T W, std::function<torch::Tensor(torch::Tensor, torch::Tensor, T)> H)
+TensorMatDual evalJac(const TensorDual & y, T W, std::function<torch::Tensor(torch::Tensor, torch::Tensor, T)> H)
 {
     int M = y.r.size(0);
     int N = y.r.size(1)/2; //The dual tensor y contains [p,x] in strict order
