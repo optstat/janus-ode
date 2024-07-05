@@ -134,8 +134,8 @@ torch::Tensor pxpxH(const torch::Tensor &x,
                                               true, 
                                               false, true)[0];
         
-        // Assign the gradient to the corresponding row of the Hessian matrix
-        hessian.index_put_({Slice(), i, Slice()}, grad_x_i.clone());
+        // Assign the gradient to the corresponding column of the Hessian matrix
+        hessian.index_put_({Slice(), i}, grad_x_i.clone());
     }
 
     // Return the Hessian
@@ -185,7 +185,8 @@ torch::Tensor pxppH(const torch::Tensor &x,
                                                 true)[0];
         
         // Assign the gradient to the corresponding slice of the mixed Hessian matrix
-        mixed_hessian.select(1, i).copy_(grad_H_p_i);
+        //mixed_hessian.select(1, i).copy_(grad_H_p_i);
+        mixed_hessian.index_put_({Slice(), i}, grad_H_p_i);
     }
 
     // Return the mixed Hessian
@@ -235,7 +236,8 @@ torch::Tensor pppxH(const torch::Tensor &x,
                                                 true)[0];
         
         // Assign the gradient to the corresponding slice of the mixed Hessian matrix
-        mixed_hessian.select(1, i).copy_(grad_H_x_i);
+        //mixed_hessian.select(1, i).copy_(grad_H_x_i);
+        mixed_hessian.index_put_({Slice(), i}, grad_H_x_i);
     }
 
     // Return the mixed Hessian
@@ -263,7 +265,6 @@ torch::Tensor ppppppH(const torch::Tensor &x,
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto p_dim = p.size(1);
@@ -276,7 +277,6 @@ torch::Tensor ppppppH(const torch::Tensor &x,
         if (pt.grad().defined()) {
             pt.grad().zero_();
         }
-        std::cerr << "pt=" << pt << std::endl;
 
         // Compute the gradient of the i-th component of grad_H_p with respect to p
         auto grad_H_p_i = torch::autograd::grad({grad_H_p.index({Slice(), i})}, 
@@ -285,7 +285,6 @@ torch::Tensor ppppppH(const torch::Tensor &x,
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
         for (int j = 0; j < p_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
@@ -296,14 +295,14 @@ torch::Tensor ppppppH(const torch::Tensor &x,
             std::cerr << "pt=" << pt << std::endl;
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), j})}, 
                                                      {pt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_p_i.index({Slice(), j}))}, 
                                                      true, 
                                                      false, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
     }
 
@@ -331,7 +330,6 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto x_dim = x.size(1);
@@ -344,7 +342,6 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
         if (xt.grad().defined()) {
             xt.grad().zero_();
         }
-        std::cerr << "xt=" << xt << std::endl;
 
         // Compute the gradient of the i-th component of grad_H_p with respect to p
         auto grad_H_p_i = torch::autograd::grad({grad_H_p.index({Slice(), i})}, 
@@ -353,7 +350,6 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
         for (int j = 0; j < x_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
@@ -361,17 +357,16 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
                 xt.grad().zero_();
             }
 
-            std::cerr << "xt=" << xt << std::endl;
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), j})}, 
                                                      {xt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_p_i.index({Slice(), j}))}, 
                                                      true, 
                                                      false, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
     }
 
@@ -388,25 +383,30 @@ torch::Tensor pppppxH(const torch::Tensor &x,
     // Create tensors with gradient tracking for both x and p
     auto xt = x.clone().detach().set_requires_grad(true);
     auto pt = p.clone().detach().set_requires_grad(true);
-
+    if (xt.grad().defined()) {
+      xt.grad().zero_();
+    }
+    if ( pt.grad().defined()) {
+      pt.grad().zero_();
+    }
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
 
     // Compute the first-order gradient of H with respect to p
-    auto grad_H_p = torch::autograd::grad({Hvalue}, 
+    auto grad_H_x = torch::autograd::grad({Hvalue}, 
                                           {xt}, 
                                           {torch::ones_like(Hvalue)}, 
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto x_dim = x.size(1);
-    torch::Tensor third_order_derivative = torch::zeros({batch_size, x_dim, x_dim, x_dim}, p.options());
+    auto p_dim = p.size(1);
+    torch::Tensor third_order_derivative = torch::zeros({batch_size, x_dim, p_dim, p_dim}, p.options());
 
     // Compute the second-order and third-order gradients
-    for (int i = 0; i < x_dim; ++i)
+    for (int i = 0; i < p_dim; ++i)
     {
         // Zero out the gradients of pt before computing the gradient for the next dimension
         if (xt.grad().defined()) {
@@ -415,17 +415,15 @@ torch::Tensor pppppxH(const torch::Tensor &x,
         if ( pt.grad().defined()) {
             pt.grad().zero_();
         }
-        std::cerr << "xt=" << xt << std::endl;
 
         // Compute the gradient of the i-th component of grad_H_p with respect to p
-        auto grad_H_p_i = torch::autograd::grad({grad_H_p.index({Slice(), i})}, 
+        auto grad_H_x_p_i = torch::autograd::grad({grad_H_x.index({Slice(), i})}, 
                                                 {pt}, 
-                                                {torch::ones_like(grad_H_p.index({Slice(), i}))}, 
+                                                {torch::ones_like(grad_H_x.index({Slice(), i}))}, 
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
-        for (int j = 0; j < x_dim; ++j)
+        for (int j = 0; j < p_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
             if (xt.grad().defined()) {
@@ -437,14 +435,14 @@ torch::Tensor pppppxH(const torch::Tensor &x,
 
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            auto grad_H_x_p_ij = torch::autograd::grad({grad_H_x_p_i.index({Slice(), j})}, 
                                                      {pt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_x_p_i.index({Slice(), j}))}, 
                                                      true, 
                                                      false, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_x_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j},grad_H_x_p_ij);
         }
     }
 
@@ -466,17 +464,17 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
     auto Hvalue = H(xt, pt, W);
 
     // Compute the first-order gradient of H with respect to p
-    auto grad_H_p = torch::autograd::grad({Hvalue}, 
+    auto grad_H_x = torch::autograd::grad({Hvalue}, 
                                           {xt}, 
                                           {torch::ones_like(Hvalue)}, 
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto x_dim = x.size(1);
-    torch::Tensor third_order_derivative = torch::zeros({batch_size, x_dim, x_dim, x_dim}, p.options());
+    auto p_dim = p.size(1);
+    torch::Tensor third_order_derivative = torch::zeros({batch_size, x_dim, x_dim, p_dim}, p.options());
 
     // Compute the second-order and third-order gradients
     for (int i = 0; i < x_dim; ++i)
@@ -489,14 +487,13 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
             pt.grad().zero_();
         }
 
-        // Compute the gradient of the i-th component of grad_H_p with respect to p
-        auto grad_H_p_i = torch::autograd::grad({grad_H_p.index({Slice(), i})}, 
+        // Compute the gradient of the i-th component of grad_H_x with respect to x
+        auto grad_H_x_i = torch::autograd::grad({grad_H_x.index({Slice(), i})}, 
                                                 {xt}, 
-                                                {torch::ones_like(grad_H_p.index({Slice(), i}))}, 
+                                                {torch::ones_like(grad_H_x.index({Slice(), i}))}, 
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
         for (int j = 0; j < x_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
@@ -508,15 +505,14 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
             }
 
 
-            // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            // Compute the gradient of the j-th component of grad_H_x_i with respect to p
+            auto grad_H_x_ij = torch::autograd::grad({grad_H_x_i.index({Slice(), j})}, 
                                                      {pt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_x_i.index({Slice(), j}))}, 
                                                      true, 
-                                                     false, 
+                                                     true, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j}, grad_H_x_ij);
         }
     }
 
@@ -538,17 +534,17 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
     auto Hvalue = H(xt, pt, W);
 
     // Compute the first-order gradient of H with respect to p
-    auto grad_H_p = torch::autograd::grad({Hvalue}, 
+    auto grad_H_x = torch::autograd::grad({Hvalue}, 
                                           {xt}, 
                                           {torch::ones_like(Hvalue)}, 
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto x_dim = x.size(1);
-    torch::Tensor third_order_derivative = torch::zeros({batch_size, x_dim, x_dim, x_dim}, p.options());
+    auto p_dim = p.size(1);
+    torch::Tensor third_order_derivative = torch::zeros({batch_size, x_dim, p_dim, x_dim}, p.options());
 
     // Compute the second-order and third-order gradients
     for (int i = 0; i < x_dim; ++i)
@@ -560,17 +556,15 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
         if ( pt.grad().defined()) {
             pt.grad().zero_();
         }
-        std::cerr << "xt=" << xt << std::endl;
 
         // Compute the gradient of the i-th component of grad_H_p with respect to p
-        auto grad_H_p_i = torch::autograd::grad({grad_H_p.index({Slice(), i})}, 
+        auto grad_H_p_i = torch::autograd::grad({grad_H_x.index({Slice(), i})}, 
                                                 {pt}, 
-                                                {torch::ones_like(grad_H_p.index({Slice(), i}))}, 
+                                                {torch::ones_like(grad_H_x.index({Slice(), i}))}, 
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
-        for (int j = 0; j < x_dim; ++j)
+        for (int j = 0; j < p_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
             if (xt.grad().defined()) {
@@ -582,14 +576,14 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
 
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), j})}, 
                                                      {xt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_p_i.index({Slice(), j}))}, 
                                                      true, 
                                                      false, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
     }
 
@@ -618,7 +612,6 @@ torch::Tensor pppxppH(const torch::Tensor &x,
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto x_dim = x.size(1);
@@ -643,7 +636,6 @@ torch::Tensor pppxppH(const torch::Tensor &x,
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
         for (int j = 0; j < x_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
@@ -656,14 +648,14 @@ torch::Tensor pppxppH(const torch::Tensor &x,
 
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), j})}, 
                                                      {pt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_p_i.index({Slice(), j}))}, 
                                                      true, 
                                                      false, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
     }
 
@@ -692,7 +684,6 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto x_dim = x.size(1);
@@ -717,7 +708,6 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
         for (int j = 0; j < x_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
@@ -730,14 +720,14 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
 
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), j})}, 
                                                      {xt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_p_i.index({Slice(), j}))}, 
                                                      true, 
                                                      false, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
     }
 
@@ -766,7 +756,6 @@ torch::Tensor pxppppH(const torch::Tensor &x,
                                           true, 
                                           true, 
                                           true)[0];
-    std::cerr << "grad_H_p=" << grad_H_p << std::endl;
     // Initialize a tensor to hold the third-order gradients
     auto batch_size = p.size(0);
     auto x_dim = x.size(1);
@@ -791,7 +780,6 @@ torch::Tensor pxppppH(const torch::Tensor &x,
                                                 true, 
                                                 true, 
                                                 true)[0];
-        std::cerr << "grad_H_p_i=" << grad_H_p_i << std::endl;
         for (int j = 0; j < x_dim; ++j)
         {
             // Zero out the gradients of pt before computing the gradient for the next dimension
@@ -804,14 +792,14 @@ torch::Tensor pxppppH(const torch::Tensor &x,
 
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
-            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), i})}, 
+            auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), j})}, 
                                                      {xt}, 
-                                                     {torch::ones_like(grad_H_p_i.index({Slice(), i}))}, 
+                                                     {torch::ones_like(grad_H_p_i.index({Slice(), j}))}, 
                                                      true, 
                                                      false, 
                                                      true)[0];
-            std::cerr << "grad_H_p_ij=" << grad_H_p_ij << std::endl;
-            third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
+            third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
     }
 
@@ -877,30 +865,36 @@ TensorMatDual evalJac(const TensorDual & y, T W, std::function<torch::Tensor(con
     auto pppxHval   = pppxH(x.r, p.r, W, H);
     auto pppppxHval = pppppxH(x.r, p.r, W, H);
     auto pxpppxHval = pxpppxH(x.r, p.r, W, H);
-    auto pppxHval_dual = torch::einsum("mijk,mil->mjkl", {pxpppxHval, x.d})+
-                         torch::einsum("mijk, mil->mjkl", {pppppxHval, p.d});
+    auto pppxHval_dual = torch::einsum("mijk,mkl->mijl", {pxpppxHval, x.d})+
+                         torch::einsum("mijk,mkl->mijl", {pppppxHval, p.d});
     TensorMatDual pp_dotp = TensorMatDual(pppxHval, pppxHval_dual);
 
     auto pxpxHval = pxpxH(x.r, p.r, W, H);
     auto pppxpxHval = pppxpxH(x.r, p.r, W, H);
     auto pxpxpxHval = pxpxpxH(x.r, p.r, W, H);
-    auto pxpxHval_dual = torch::einsum("mijk,mil->mjkl", {pxpxpxHval, x.d})+
-                         torch::einsum("mijk, mil->mjkl", {pppxpxHval, p.d});
+    auto pxpxHval_dual = torch::einsum("mijk,mkl->mijl", {pxpxpxHval, x.d})+
+                         torch::einsum("mijk,mkl->mijl", {pppxpxHval, p.d});
+
+    std::cerr << "pppxpxHval=" << pppxpxHval << std::endl;
+    std::cerr << "p.d=" << p.d << std::endl;
     TensorMatDual px_dotp = TensorMatDual(pxpxHval, pxpxHval_dual);
     
     
     auto ppppHval = ppppH(x.r, p.r, W, H);
     auto ppppppHval = ppppppH(x.r, p.r, W, H);
     auto pxppppHval = pxppppH(x.r, p.r, W, H);
-    auto ppppHval_dual = torch::einsum("mijk,mil->mjkl", {pxppppHval, x.d})+
-                         torch::einsum("mijk, mil->mjkl", {ppppppHval, p.d});
+    auto ppppHval_dual = torch::einsum("mijk,mkl->mijl", {pxppppHval, x.d})+
+                         torch::einsum("mijk,mkl->mijl", {ppppppHval, p.d});
     TensorMatDual pp_dotx = TensorMatDual(ppppHval, ppppHval_dual);
+
+
+
 
     auto pxppHval = pxppH(x.r, p.r, W, H);
     auto pppxppHval = pppxppH(x.r, p.r, W, H);
     auto pxpxppHval = pxpxppH(x.r, p.r, W, H);
-    auto pxppHval_dual = torch::einsum("mijk,mil->mjkl", {pxpxppHval, x.d})+
-                         torch::einsum("mijk, mil->mjkl", {pppxppHval, p.d});
+    auto pxppHval_dual = torch::einsum("mijk,mkl->mijl", {pxpxppHval, x.d})+
+                         torch::einsum("mijk, mkl->mijl", {pppxppHval, p.d});
     TensorMatDual px_dotx = TensorMatDual(pxppHval, pxppHval_dual);
 
     auto jac1 = TensorMatDual::cat(pp_dotp, px_dotp, 2);

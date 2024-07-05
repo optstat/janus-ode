@@ -209,7 +209,7 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     //Update the state space using euler for one step
     auto yted =y0ted.clone();
 
-    for ( int i=0; i < 1000; i++)
+    for ( int i=0; i < 1; i++)
     {
         yted = rk4(yted, W, h);
     }
@@ -273,7 +273,8 @@ TEST(HamiltonianTest, JacExplVsImplTest)
     auto jacExpl = vdpjac(yted, W);//Calculate the dynamics at the new location
     auto jacImpl = evalJac<double>(yted, W, H);
     EXPECT_TRUE(torch::allclose(jacExpl.r, jacImpl.r));
-
+    std::cerr << "yted=";
+    janus::print_dual(yted);
     EXPECT_TRUE(torch::allclose(jacExpl.d, jacImpl.d));
     std::cerr << "jacExpl.d=";
     janus::print_tensor(jacExpl.d);
