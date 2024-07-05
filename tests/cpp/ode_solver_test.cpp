@@ -204,12 +204,12 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     y0dual.index_put_({Slice(), 0, 0}, 1.0);
     y0dual.index_put_({Slice(), 1, 1}, 1.0);
     auto y0ted = TensorDual(y0, y0dual);
-    std::cerr << "y0ted=";
-    janus::print_dual(y0ted);
+    //std::cerr << "y0ted=";
+    //janus::print_dual(y0ted);
     //Update the state space using euler for one step
     auto yted =y0ted.clone();
 
-    for ( int i=0; i < 1; i++)
+    for ( int i=0; i < 1000; i++)
     {
         yted = rk4(yted, W, h);
     }
@@ -230,10 +230,10 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     //Now compare with the APIs
     
     auto implDyns = evalDyns<double>(yted, W, H);
-    std::cerr << "implDyns=";
-    janus::print_dual(implDyns);
-    std::cerr << "dydt=";
-    janus::print_dual(dydt);
+    //std::cerr << "implDyns=";
+    //janus::print_dual(implDyns);
+    //std::cerr << "dydt=";
+    //janus::print_dual(dydt);
     EXPECT_TRUE(torch::allclose(dydt.r, implDyns.r));
     EXPECT_TRUE(torch::allclose(dydt.d, implDyns.d));    
 }
@@ -266,20 +266,20 @@ TEST(HamiltonianTest, JacExplVsImplTest)
     //Update the state space using euler for one step
     auto yted =y0ted.clone();
 
-    for ( int i=0; i < 100; i++)
+    for ( int i=0; i < 1000; i++)
     {
         yted = rk4(yted, W, h);
     }
     auto jacExpl = vdpjac(yted, W);//Calculate the dynamics at the new location
     auto jacImpl = evalJac<double>(yted, W, H);
     EXPECT_TRUE(torch::allclose(jacExpl.r, jacImpl.r));
-    std::cerr << "yted=";
-    janus::print_dual(yted);
+    //std::cerr << "yted=";
+    //janus::print_dual(yted);
     EXPECT_TRUE(torch::allclose(jacExpl.d, jacImpl.d));
-    std::cerr << "jacExpl.d=";
-    janus::print_tensor(jacExpl.d);
-    std::cerr << "jacImpl.d=";
-    janus::print_tensor(jacImpl.d);
+    //std::cerr << "jacExpl.d=";
+    //janus::print_tensor(jacExpl.d);
+    //std::cerr << "jacImpl.d=";
+    //janus::print_tensor(jacImpl.d);
 
 }
 

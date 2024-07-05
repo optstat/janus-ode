@@ -292,7 +292,6 @@ torch::Tensor ppppppH(const torch::Tensor &x,
                 pt.grad().zero_();
             }
 
-            std::cerr << "pt=" << pt << std::endl;
 
             // Compute the gradient of the j-th component of grad_H_p_i with respect to p
             auto grad_H_p_ij = torch::autograd::grad({grad_H_p_i.index({Slice(), j})}, 
@@ -875,8 +874,6 @@ TensorMatDual evalJac(const TensorDual & y, T W, std::function<torch::Tensor(con
     auto pxpxHval_dual = torch::einsum("mijk,mkl->mijl", {pxpxpxHval, x.d})+
                          torch::einsum("mijk,mkl->mijl", {pppxpxHval, p.d});
 
-    std::cerr << "pppxpxHval=" << pppxpxHval << std::endl;
-    std::cerr << "p.d=" << p.d << std::endl;
     TensorMatDual px_dotp = TensorMatDual(pxpxHval, pxpxHval_dual);
     
     
