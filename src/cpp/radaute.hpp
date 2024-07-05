@@ -13,9 +13,9 @@
 #include <iomanip>
 #include <complex>
 #include <algorithm>
-#include "tensordual.hpp"
-#include "qrte.hpp"
-#include "qrtec.hpp"
+#include <janus/tensordual.hpp>
+#include <janus/qrte.hpp>
+#include <janus/qrtec.hpp>
 
 //For debugging purposes
 void (*pt)(const torch::Tensor&) = janus::print_tensor;

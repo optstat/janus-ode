@@ -8,14 +8,14 @@
 #include <typeinfo>
 #include <math.h>
 #include <optional>
-#include "qrtedc.hpp"
+#include <janus/qrtedc.hpp>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <iomanip>
 #include <complex>
 #include <algorithm>
-#include "tensordual.hpp"
-#include "janus_util.hpp"
+#include <janus/tensordual.hpp>
+#include <janus/janus_util.hpp>
 
 void (*pt)(const torch::Tensor&) = janus::print_tensor;
 void (*pd)(const TensorDual&) = janus::print_dual;

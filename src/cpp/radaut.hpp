@@ -1,5 +1,5 @@
-#ifndef RADAU_H_INCLUDED
-#define RADAU_H_INCLUDED
+#ifndef RADAUT_H_INCLUDED
+#define RADAUT_H_INCLUDED
 
 #include <functional>
 #include <iostream>
@@ -8,8 +8,8 @@
 #include <typeinfo>
 #include <math.h>
 #include <optional>
-#include "tensordual.hpp"
-#include "qr.hpp"
+#include <janus/tensordual.hpp>
+#include <janus/qr.hpp>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <iomanip>

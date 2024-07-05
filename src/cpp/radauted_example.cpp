@@ -1,6 +1,6 @@
-#include "radauted.hpp"
-#include "tensordual.hpp"
-#include "janus_util.hpp"
+#include <janus/radauted.hpp>
+#include <janus/tensordual.hpp>
+#include <janus/janus_util.hpp>
 /**
  * Radau example using the Van der Pol oscillator 
  * for odes in batch mode

@@ -1,9 +1,8 @@
 #ifndef RADAU5_TED_INCLUDED
 #define RADAU5_TED_INCLUDED
-#include "tensordual.hpp"
+#include <janus/tensordual.hpp>
 #include <torch/torch.h>
 #include <typeinfo>
-#include <tuple>
 #include <tuple>
 
 // Function declarations

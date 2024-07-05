@@ -1,5 +1,5 @@
-#include "radaut.hpp"
-#include "tensordual.hpp"
+#include <janus/radaut.hpp>
+#include <janus/tensordual.hpp>
 
 
 torch::Tensor vdpdyns(torch::Tensor& t, torch::Tensor& y, 

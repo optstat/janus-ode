@@ -9,6 +9,11 @@ set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS 1 CACHE INTERNAL "Suppress developer warni
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 # Add DEBUG definition
 #add_definitions(-DDEBUG)
+# Include directories
+include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
+include_directories(${CMAKE_SOURCE_DIR}/src/cpp)
+
+
 
 enable_testing()
 # Find libtorch.  Modify this line to find your own libtorch installation.
@@ -32,6 +37,7 @@ add_custom_target(copy_headers ALL
 
 # Add subdirectory for tests
 add_subdirectory(tests/cpp)
+add_subdirectory(examples/cpp)
 
 # Install rules for header files
 install(DIRECTORY ${HEADER_SOURCE_DIR}/ DESTINATION include/janus FILES_MATCHING PATTERN "*.hpp")
