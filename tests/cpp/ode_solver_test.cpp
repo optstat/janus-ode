@@ -107,30 +107,40 @@ TensorDual vdpdyns(const TensorDual& y, double W)
 /**
  * Explicit function for jacobian
  */
-torch::Tensor vdpjac(const torch::Tensor& y, 
+TensorMatDual vdpjac(const TensorDual& y, 
                      double W)
 {
-  torch::Tensor p1 = y.index({Slice(), 0});
-  torch::Tensor p2 = y.index({Slice(), 1});
-  torch::Tensor x1 = y.index({Slice(), 2});
-  torch::Tensor x2 = y.index({Slice(), 3});
-  torch::Tensor dydt = y*0.0;
-  torch::Tensor jac = torch::zeros({4,4}, torch::kFloat64); 
-  //the dynamics are rows and the state/costate are columns
-  jac.index_put_({Slice(), 0, 1}, -4*p2*(x2*(1-x1*x1)-x1)*(-2*x1*x2-1)/W);
-  jac.index_put_({Slice(), 0, 2},  -2 * p2*p2 * ((1 - x1*x1) * x2 - x1) * (-2 * x1 * x2 - 1) / W);
-  jac.index_put_({Slice(), 0, 3}, -2 * p2*p2 * ((1 - x1*x1) * x2 - x1) * (-2 * x1 * x2 - 1) / W);
-  
-  jac.index_put_({Slice(), 1, 0}, 1.0);
-  jac.index_put_({Slice(), 1, 1}, -4*p2*((1 - x1*x1)*x2 - x1)*(1 - x1*x1)/W);
-  jac.index_put_({Slice(), 1, 2}, -2*p2*p2*((-2*x1)*((1 - x1*x1)*x2 - x1) + (1 - x1*x1)*(-2*x1*x2 - 1))/W);
-  jac.index_put_({Slice(), 1, 3}, -2*p2*p2*(1 - x1*x1).pow(2)/W);
+  TensorDual p1 = y.index({Slice(), 0});
+  TensorDual p2 = y.index({Slice(), 1});
+  TensorDual x1 = y.index({Slice(), 2});
+  TensorDual x2 = y.index({Slice(), 3});
+  int M = y.d.size(0);
+  int N = y.d.size(1);
+  int D = y.d.size(2);
 
+  TensorMatDual jac = TensorMatDual(torch::zeros({M,N,N}, dtype(torch::kFloat64)),
+                                    torch::zeros({M,N,N,D}, dtype(torch::kFloat64))); 
+  //the dynamics are rows and the state/costate are columns
+  //-2*p2*p2*((1-x1*x1)*x2-x1)*(-2*x1*x2-1)/W)
+  jac.index_put_({Slice(), 0, 1}, -4*p2*((1-x1*x1)*x2-x1)*(-2*x1*x2-1)/W);
+  jac.index_put_({Slice(), 0, 2}, (4 * p2 * p2 * x2 * (-x1 + x2 * (1 - x1 * x1))) / W -
+                                  (2 * p2 * p2 * (-2 * x1 * x2 - 1) * (-2 * x1 * x2 - 1)) / W);
+  jac.index_put_({Slice(), 0, 3}, (4 * p2 * p2 * x1 * (-x1 + x2 * (1 - x1 * x1))) / W-
+                                  (2 * p2 * p2 * (1 - x1 * x1) * (-2 * x1 * x2 - 1)) / W);
+  //p1-2*p2*p2*((1-x1*x1)*x2-x1)*((1-x1*x1))/W
+  jac.index_put_({Slice(), 1, 0}, 1.0);
+  jac.index_put_({Slice(), 1, 1}, (-4 * p2 * (1 - x1 * x1) * (-x1 + x2 * (1 - x1 * x1))) / W);
+  jac.index_put_({Slice(), 1, 2}, (4 * p2 * p2 * x1 * (-x1 + x2 * (1 - x1 * x1))) / W-
+                                  (2 * p2 * p2 * (1 - x1 * x1) * (-2 * x1 * x2 - 1)) / W);
+  jac.index_put_({Slice(), 1, 3},  (-2 * p2 * p2 * (1 - x1 * x1) * (1 - x1 * x1)) / W);
+
+  //x2
   jac.index_put_({Slice(), 2, 3}, 1.0);
 
-  jac.index_put_({Slice(), 3, 1}, -2*(x2*(1 - x1*x1) - x1).pow(2)/W);
-  jac.index_put_({Slice(), 3, 2}, -4*p2*(x2*(1 - x1*x1) - x1)*(-2*x1*x2 - 1)/W);
-  jac.index_put_({Slice(), 3, 3}, -4*p2*(x2*(1 - x1*x1) - x1)*(1 - x1*x1)/W);
+  //-2*p2*(x2*(1-x1*x1)-x1).pow(2)/W
+  jac.index_put_({Slice(), 3, 1},  -2*(x2*(1-x1*x1)-x1).pow(2)/W);
+  jac.index_put_({Slice(), 3, 2}, -2 * p2 * (-x1 + x2 * (1 - x1 * x1))*(-4 * x1 * x2 - 2) / W);
+  jac.index_put_({Slice(), 3, 3}, -2 * p2*(2 - 2 * x1 * x1)*(-x1 + x2 * (1 - x1 * x1)) / W);
 
 
   return jac;
@@ -225,15 +235,52 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     std::cerr << "dydt=";
     janus::print_dual(dydt);
     EXPECT_TRUE(torch::allclose(dydt.r, implDyns.r));
-    EXPECT_TRUE(torch::allclose(dydt.d, implDyns.d));
-
-
-
-
-
-    
+    EXPECT_TRUE(torch::allclose(dydt.d, implDyns.d));    
 }
 
+TEST(HamiltonianTest, JacExplVsImplTest) 
+{
+
+
+    int M = 1;
+    int N = 2;
+    double W = 0.1;
+    double h = 0.000001;
+
+
+
+
+
+    //The Hamiltonian should yield the dynamics throught the dual gradients
+
+    torch::Tensor y0 = torch::zeros({M, 2*N}, torch::kFloat64);
+    y0.index_put_({Slice(), 0}, -1.0); //p1
+    y0.index_put_({Slice(), 1}, -1.0); //p2
+    y0.index_put_({Slice(), 2}, 2.0); //x1
+    y0.index_put_({Slice(), 3}, 0.0); //x2
+
+    torch::Tensor y0dual = torch::zeros({M, 2*N, N}, torch::kFloat64);
+    y0dual.index_put_({Slice(), 0, 0}, 1.0);
+    y0dual.index_put_({Slice(), 1, 1}, 1.0);
+    auto y0ted = TensorDual(y0, y0dual);
+    //Update the state space using euler for one step
+    auto yted =y0ted.clone();
+
+    for ( int i=0; i < 100; i++)
+    {
+        yted = rk4(yted, W, h);
+    }
+    auto jacExpl = vdpjac(yted, W);//Calculate the dynamics at the new location
+    auto jacImpl = evalJac<double>(yted, W, H);
+    EXPECT_TRUE(torch::allclose(jacExpl.r, jacImpl.r));
+
+    EXPECT_TRUE(torch::allclose(jacExpl.d, jacImpl.d));
+    std::cerr << "jacExpl.d=";
+    janus::print_tensor(jacExpl.d);
+    std::cerr << "jacImpl.d=";
+    janus::print_tensor(jacImpl.d);
+
+}
 
 
 int main(int argc, char **argv) {
