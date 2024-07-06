@@ -1,9 +1,11 @@
 #include <janus/radaute.hpp>
 #include <janus/tensordual.hpp>
 #include <janus/janus_util.hpp>
+#include "matplotlibcpp.h"
 /**
  * Radau example using the Van der Pol oscillator 
- * for odes in batch mode
+ * Using the Hamiltonian with dual number approach to calcuate the dynamics and
+ * the Jacobian
 */
 using Slice = torch::indexing::Slice;
 torch::Tensor vdpdyns(const torch::Tensor& t, const torch::Tensor& y, 

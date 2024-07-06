@@ -1,5 +1,21 @@
 cmake_minimum_required(VERSION 3.10)
 project(JanusLinearProject)
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
+
+
+# Find Python3 and NumPy
+find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+
+# Include directories
+include_directories(${Python3_INCLUDE_DIRS})
+include_directories(${Python3_NumPy_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR})
+
+# Set the global runtime output directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)

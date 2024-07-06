@@ -1,3 +1,10 @@
+# Inherit include directories from the parent
+include_directories(${CMAKE_SOURCE_DIR}/src/cpp)
+include_directories(${Python3_INCLUDE_DIRS})
+include_directories(${Python3_NumPy_INCLUDE_DIRS})
+include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
+
+
 # Find libtorch
 find_package(Torch REQUIRED)
 
@@ -12,11 +19,18 @@ include_directories(src/cpp ${GTEST_INCLUDE_DIRS})
 
 # Link GTest
 target_link_libraries(odetest ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES})
+target_link_libraries(odetest Python3::Python Python3::NumPy)
+
 
 # Link libtorch
 target_link_libraries(odetest "${TORCH_LIBRARIES}")
 set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
-add_test(NAME LinearTest COMMAND ${CMAKE_BINARY_DIR}/bin/lineartest)
+
+# Set C++ standard
+set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
+# Add test
+add_test(NAME LinearTest COMMAND ${CMAKE_BINARY_DIR}/bin/odetest)
+
 
 # Ensure the test executable is built when running 'make test'
 add_custom_target(run_tests
