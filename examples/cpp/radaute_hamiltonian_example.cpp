@@ -1,7 +1,10 @@
 #include <janus/radaute.hpp>
 #include <janus/tensordual.hpp>
 #include <janus/janus_util.hpp>
+#include <janus/janus_ode_common.hpp>
 #include "matplotlibcpp.h"
+using namespace janus;
+
 /**
  * Radau example using the Van der Pol oscillator 
  * Using the Hamiltonian with dual number approach to calcuate the dynamics and
@@ -16,7 +19,10 @@ torch::Tensor vdpdyns(const torch::Tensor& t, const torch::Tensor& y,
   return ydot.clone(); 
 }
 
-TensorDual vdpdynsdual(TensorDual& t, TensorDual& y) {
+/**
+ * Dynamics calculated using the explicit approach
+ */
+TensorDual vdpdynsdual_expl(TensorDual& t, TensorDual& y) {
   TensorDual ydot = TensorDual::zeros_like(y);
   TensorDual y1 = y.index(0);  //Make sure the input is not modified
   TensorDual y2 = y.index(1);  //Make sure the input is not modified
@@ -24,6 +30,33 @@ TensorDual vdpdynsdual(TensorDual& t, TensorDual& y) {
   ydot.index_put_(0, y2);
   ydot.index_put_(1, y3*(1 - y1 * y1) * y2 - y1);
   return ydot.clone(); //Return the through copy elision
+}
+
+torch::Tensor control(const torch::Tensor& x1, 
+                      const torch::Tensor& x2,
+                      const torch::Tensor& p1,
+                      const torch::Tensor& p2, 
+                      double W=1.0) {
+  auto u = -p2*((1-x1*x1)*x2-x1)/W;
+  return u; //Return the through copy elision
+}
+
+torch::Tensor hamiltonian(torch::Tensor& x, torch::Tensor& p, double W) {
+  torch::Tensor p1 = p.index({Slice(), 0});  
+  torch::Tensor p2 = p.index({Slice(), 1});  
+  torch::Tensor x1 = x.index({Slice(), 0});  
+  torch::Tensor x2 = x.index({Slice(), 1});  
+  auto u = control(x1, x2, p1, p2, W);
+  auto H = p1+p2*(u*((1-x1*x1)*x2)-x1)+W*u*u/2; //Return the through copy elision
+  return H; //Return the through copy elision
+}
+
+/**
+ * Dynamics calculated according the hamiltonian method
+ */
+TensorDual vdpdynsdual_ham(TensorDual& t, TensorDual& y) {
+  double W = 0.001;
+  return evalDyns(y, W, hamiltonian);
 }
 
 

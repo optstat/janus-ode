@@ -229,7 +229,7 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(0, 2)}), pxHval));
     //Now compare with the APIs
     
-    auto implDyns = evalDyns<double>(yted, W, H);
+    auto implDyns = evalDynsDual<double>(yted, W, H);
     //std::cerr << "implDyns=";
     //janus::print_dual(implDyns);
     //std::cerr << "dydt=";
@@ -271,7 +271,7 @@ TEST(HamiltonianTest, JacExplVsImplTest)
         yted = rk4(yted, W, h);
     }
     auto jacExpl = vdpjac(yted, W);//Calculate the dynamics at the new location
-    auto jacImpl = evalJac<double>(yted, W, H);
+    auto jacImpl = evalJacDual<double>(yted, W, H);
     EXPECT_TRUE(torch::allclose(jacExpl.r, jacImpl.r));
     //std::cerr << "yted=";
     //janus::print_dual(yted);

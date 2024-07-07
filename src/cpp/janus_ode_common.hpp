@@ -807,7 +807,7 @@ torch::Tensor pxppppH(const torch::Tensor &x,
 }
 
 template<typename T>
-TensorDual evalDyns(const TensorDual &y, T W, std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
+TensorDual evalDynsDual(const TensorDual &y, T W, std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     int M = y.r.size(0);
     int N = y.r.size(1)/2; //The dual tensor y contains [p,x] in strict order
@@ -844,9 +844,71 @@ TensorDual evalDyns(const TensorDual &y, T W, std::function<torch::Tensor(const 
     return dyns;
 }
 
+template<typename T>
+torch::Tensor evalDyns(const torch::Tensor &y, 
+                    T W, 
+                    std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
+{
+    int M = y.size(0);
+    int N = y.size(1)/2; //The tensor y contains [p,x] in strict order
+    auto p = y.index({Slice(), Slice(0, N)});
+    auto x = y.index({Slice(), Slice(N, 2*N)});
+    // Compute the Hamiltonian value
+    auto Hvalue = H(x, p, W);
+
+    // Compute the gradient of H with respect to x
+    auto grad_H_x = pxH(x, p, W, H);
+
+    // Compute the gradient of H with respect to p
+    auto grad_H_p = ppH(x, p, W, H);
+    // Return the dynamics
+    auto dotp = grad_H_x;
+    auto dotx = grad_H_p;
+
+    auto dyns = torch::cat({dotp, dotx},1);
+    return dyns;
+}
 
 template<typename T>
-TensorMatDual evalJac(const TensorDual & y, T W, std::function<torch::Tensor(const torch::Tensor&, 
+torch::Tensor evalJac(const torch::Tensor & y, T W, std::function<torch::Tensor(const torch::Tensor&, 
+                                                                             const torch::Tensor&, 
+                                                                             T)> H)
+{
+    int M = y.size(0);
+    int N = y.size(1)/2; //The dual tensor y contains [p,x] in strict order
+    auto p = y.index({Slice(), Slice(0, N)});
+    auto x = y.index({Slice(), Slice(N, 2*N)});
+    // Compute the Hamiltonian value
+    auto Hvalue = H(x, p, W);
+
+    
+    /*auto dp0pxH = torch::einsum("mij, mjk->mik", {pxpxHval, dxdp0})+
+                  //****Note here that the index wrt is i and the index wrt p is j****
+                  torch::einsum("mij, mjk->mik", {pppxHval, dpdp0});  */
+    auto pppxHval         = pppxH(x, p, W, H);
+    torch::Tensor pp_dotp = pppxHval;
+
+    auto pxpxHval = pxpxH(x, p, W, H);
+    torch::Tensor px_dotp = pxpxHval;
+    
+    
+    auto ppppHval = ppppH(x, p, W, H);
+    torch::Tensor pp_dotx = ppppHval;
+
+    auto pxppHval = pxppH(x, p, W, H);
+    torch::Tensor px_dotx = pxppHval;
+
+
+
+    auto jac1 = torch::cat({pp_dotp, px_dotp}, 2);
+    auto jac2 = torch::cat({pp_dotx, px_dotx}, 2);
+    auto jac = torch::cat({jac1, jac2}, 1);
+
+    return jac;
+}
+
+template<typename T>
+TensorMatDual evalJacDual(const TensorDual & y, T W, std::function<torch::Tensor(const torch::Tensor&, 
                                                                              const torch::Tensor&, 
                                                                              T)> H)
 {
