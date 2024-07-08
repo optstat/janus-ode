@@ -1,6 +1,11 @@
-#include "radaute.hpp"
-#include "tensordual.hpp"
-#include "janus_util.hpp"
+#include "../../src/cpp/radaute.hpp"
+#include <janus/tensordual.hpp>
+#include <janus/janus_util.hpp>
+#include "matplotlibcpp.h"
+
+namespace plt = matplotlibcpp;
+
+
 /**
  * Radau example using the Van der Pol oscillator 
  * for odes in batch mode
@@ -94,11 +99,11 @@ int main(int argc, char *argv[])
     y.index_put_({i, 0}, 2.0+i*0.001);
   }
   y.index_put_({Slice(), 1}, 0.0);
-  y.index_put_({Slice(), 2}, 10000.0);
+  y.index_put_({Slice(), 2}, 100.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   torch::Tensor tspan = torch::rand({M, 2}, torch::kFloat64).to(device);
   tspan.index_put_({Slice(), 0}, 0.0);
-  tspan.index_put_({Slice(), 1}, ((3.0-2.0*std::log(2.0))*y.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
+  tspan.index_put_({Slice(), 1}, 1.5*((3.0-2.0*std::log(2.0))*y.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
   //tspan.index_put_({Slice(), 1}, 5.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
@@ -118,6 +123,20 @@ int main(int argc, char *argv[])
   //janus::print_tensor(r.yout);
   std::cout << "Number of points=" << r.nout << std::endl;
   std::cout << "Final count=" << r.count << std::endl;
+  auto x1out = r.yout.index({0, Slice(), 0}).contiguous();
+  auto x2out = r.yout.index({0, Slice(), 1}).contiguous();
+
+  std::vector<double> x1(x1out.data_ptr<double>(), x1out.data_ptr<double>() + x1out.numel());
+  std::vector<double> x2(x2out.data_ptr<double>(), x2out.data_ptr<double>() + x2out.numel());
+
+  //Plot p1 vs p2
+  plt::figure();
+  plt::plot(x1, x2, "r-");
+  plt::xlabel("x1");
+  plt::ylabel("x2");
+  plt::title("x2 versus x1");
+  plt::save("/tmp/x1x2.png");
+  plt::close();
 
   return 0;
 }

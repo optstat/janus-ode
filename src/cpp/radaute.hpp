@@ -1563,10 +1563,10 @@ namespace janus
                 }
                 tout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
                 yout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
-                std::cerr << "At count = " << count << std::endl;
-                std::cerr << "countNewt=" << countNewt << std::endl;
-                std::cerr << "tout = " << tout << std::endl;
-                std::cerr << "yout=" << yout << std::endl; 
+                //std::cerr << "At count = " << count << std::endl;
+                //std::cerr << "countNewt=" << countNewt << std::endl;
+                //std::cerr << "tout = " << tout << std::endl;
+                //std::cerr << "yout=" << yout << std::endl; 
 
                 break;
               case 2: // Computed points, with refinement
