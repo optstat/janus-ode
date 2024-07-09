@@ -92,19 +92,19 @@ int main(int argc, char *argv[])
   //set the device
   //torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
   torch::Device device(torch::kCPU);
-  int M = 1;
+  int M = 1000;
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   torch::Tensor y = torch::zeros({M, 3}, torch::kF64).to(device);
   for (int i=0; i < M; i++) {
-    y.index_put_({i, 0}, 2.0+i*0.001);
+    y.index_put_({i, 0}, 2.0);
+    y.index_put_({i, 2}, 1.0+i*0.001);
   }
   y.index_put_({Slice(), 1}, 0.0);
-  y.index_put_({Slice(), 2}, 100.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   torch::Tensor tspan = torch::rand({M, 2}, torch::kFloat64).to(device);
   tspan.index_put_({Slice(), 0}, 0.0);
-  tspan.index_put_({Slice(), 1}, 1.5*((3.0-2.0*std::log(2.0))*y.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
-  //tspan.index_put_({Slice(), 1}, 5.0);
+  //tspan.index_put_({Slice(), 1}, 1.5*((3.0-2.0*std::log(2.0))*y.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
+  tspan.index_put_({Slice(), 1}, 10.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   janus::OptionsTe options = janus::OptionsTe(); //Initialize with default options
@@ -117,21 +117,32 @@ int main(int argc, char *argv[])
   janus::RadauTe r(vdpdyns, jac, tspan, y, options, params);   // Pass the correct arguments to the constructor
   //Call the solve method of the Radau5 class
   r.solve();
-  std::cout << "tout=";
-  janus::print_tensor(r.tout);;
+  //std::cout << "tout=";
+  //janus::print_tensor(r.tout);;
   //std::cout << "yout=";
   //janus::print_tensor(r.yout);
   std::cout << "Number of points=" << r.nout << std::endl;
   std::cout << "Final count=" << r.count << std::endl;
-  auto x1out = r.yout.index({0, Slice(), 0}).contiguous();
-  auto x2out = r.yout.index({0, Slice(), 1}).contiguous();
+  std::vector<int> nouts(M);
+  std::vector<std::vector<double>> x1s(M);
+  std::vector<std::vector<double>> x2s(M);
+  for ( int i=0; i < M; i++) {
+    nouts[i] = r.nout.index({i}).item<int>();
+    x1s[i].resize(nouts[i]);
+    x2s[i].resize(nouts[i]);
+    for ( int j=0; j < nouts[i]; j++) {
+      x1s[i][j] = r.yout.index({i, j, 0}).item<double>();
+      x2s[i][j] = r.yout.index({i, j, 1}).item<double>();
+    }
+  }
 
-  std::vector<double> x1(x1out.data_ptr<double>(), x1out.data_ptr<double>() + x1out.numel());
-  std::vector<double> x2(x2out.data_ptr<double>(), x2out.data_ptr<double>() + x2out.numel());
 
   //Plot p1 vs p2
   plt::figure();
-  plt::plot(x1, x2, "r-");
+  for (int i=0; i < M; i++) {
+    plt::plot(x1s[i], x2s[i]);
+  }
+
   plt::xlabel("x1");
   plt::ylabel("x2");
   plt::title("x2 versus x1");

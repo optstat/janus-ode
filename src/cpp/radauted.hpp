@@ -1791,10 +1791,10 @@ namespace janus
 
                 tout.index_put_({m1_12_1, Slice(0,1), nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
                 yout.index_put_({m1_12_1, Slice(), nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
-                std::cerr << "m1_12_1 = " << m1_12_1 << "\n";
-                std::cerr << "t = " << t << "\n";
-                std::cerr << "count=" << count << "\n";
-                std::cerr << "yout = " << yout << "\n";
+                //std::cerr << "m1_12_1 = " << m1_12_1 << "\n";
+                //std::cerr << "t = " << t << "\n";
+                //std::cerr << "count=" << count << "\n";
+                //std::cerr << "yout = " << yout << "\n";
                 break;
               case 2: // Computed points, with refinement
                 oldnout.index_put_({m1_12_1}, nout.index({m1_12_1}));
@@ -2264,7 +2264,7 @@ namespace janus
             // Each sample will have exactly one stage
             // Extract the samples for this stage
             int q1 = q + 1;
-            int q2 = 2 * q;
+            int q2 = 2 * q; 
             int q3 = q2 + 1;
             // std::cerr << "valp=";
             // print_tensor(valp);

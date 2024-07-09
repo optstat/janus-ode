@@ -16,6 +16,7 @@ find_package(Torch REQUIRED)
 # Specify the executable
 set(SOURCE_FILE1 radaute_hamiltonian_example.cpp)
 set(SOURCE_FILE2 radaute_example.cpp)
+set(SOURCE_FILE3 radauted_example.cpp)
 
 add_executable(vdphamexample ${SOURCE_FILE1})
 # Link libraries
@@ -27,13 +28,23 @@ add_executable(vdpexample ${SOURCE_FILE2})
 target_link_libraries(vdpexample "${TORCH_LIBRARIES}")
 target_link_libraries(vdpexample Python3::Python Python3::NumPy)
 
+add_executable(vdpdexample ${SOURCE_FILE3})
+# Link libraries for the second executable
+target_link_libraries(vdpdexample "${TORCH_LIBRARIES}")
+target_link_libraries(vdpdexample Python3::Python Python3::NumPy)
+
 
 # Ensure the executable is built when running 'make run_vdphamexample'
 add_custom_target(run_vdphamexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdphamexample
 )
 
-# Ensure the executable is built when running 'make run_vdphamexample'
+# Ensure the executable is built when running 'make run_vdpexample'
 add_custom_target(run_vdpexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpexample
+)
+
+# Ensure the executable is built when running 'make run_vdpdexample'
+add_custom_target(run_vdpdexample
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpdexample
 )

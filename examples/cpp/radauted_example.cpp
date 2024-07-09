@@ -1,6 +1,11 @@
-#include "radauted.hpp"
-#include "tensordual.hpp"
-#include "janus_util.hpp"
+#include "../../src/cpp/radauted.hpp"
+#include <janus/tensordual.hpp>
+#include <janus/janus_util.hpp>
+#include "matplotlibcpp.h"
+
+namespace plt = matplotlibcpp;
+
+ 
 /**
  * Radau example using the Van der Pol oscillator 
  * for odes in batch mode
@@ -85,12 +90,12 @@ int main(int argc, char *argv[])
     y.r.index_put_({i, 0}, 2.0+0.0001*i);
   }
   y.r.index_put_({Slice(), 1}, 0.0);
-  y.r.index_put_({Slice(), 2}, 10000.0);
+  y.r.index_put_({Slice(), 2}, 1.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   TensorDual tspan = TensorDual(torch::rand({M, 2}, torch::kFloat64).to(device), torch::zeros({M,2,N}, torch::kFloat64).to(device));
   tspan.r.index_put_({Slice(), 0}, 0.0);
-  tspan.r.index_put_({Slice(), 1}, ((3.0-2.0*std::log(2.0))*y.r.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
-  //tspan.index_put_({Slice(), 1}, 5.0);
+  //tspan.r.index_put_({Slice(), 1}, 2*((3.0-2.0*std::log(2.0))*y.r.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
+  tspan.index_put_({Slice(), 1}, 10.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   janus::OptionsTeD options = janus::OptionsTeD(); //Initialize with default options
@@ -107,10 +112,29 @@ int main(int argc, char *argv[])
   janus::print_tensor(r.tout.r);
   std::cout << "Number of points=" << r.nout << std::endl;
   std::cout << "Final count=" << r.count << std::endl;
-  //std::cout << "yout real=";
-  //janus::print_tensor(r.yout.r);
+  std::cout << "yout real=";
+  janus::print_tensor(r.yout.r);
   //std::cout << "yout dual=";
   //janus::print_tensor(r.yout.d);
+  auto x11out = r.yout.r.index({0, 0, Slice()}).contiguous();
+  auto x12out = r.yout.r.index({0, 1, Slice()}).contiguous();
+  //auto x21out = r.yout.r.index({1, 0, Slice()}).contiguous();
+  //auto x22out = r.yout.r.index({1, 1, Slice()}).contiguous();
+
+  std::vector<double> x11(x11out.data_ptr<double>(), x11out.data_ptr<double>() + x11out.numel());
+  std::vector<double> x12(x12out.data_ptr<double>(), x12out.data_ptr<double>() + x12out.numel());
+  //std::vector<double> x21(x11out.data_ptr<double>(), x21out.data_ptr<double>() + x21out.numel());
+  //std::vector<double> x22(x12out.data_ptr<double>(), x22out.data_ptr<double>() + x22out.numel());
+
+  //Plot p1 vs p2
+  plt::figure();
+  plt::plot(x11, x12, "r-");
+  //plt::plot(x21, x22, "b-");
+  plt::xlabel("x1");
+  plt::ylabel("x2");
+  plt::title("x2 versus x1");
+  plt::save("/tmp/x1x2.png");
+  plt::close();
 
   return 0;
 }
