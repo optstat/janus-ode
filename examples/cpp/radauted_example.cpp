@@ -12,7 +12,7 @@ namespace plt = matplotlibcpp;
 */
 using Slice = torch::indexing::Slice;
 torch::Device device(torch::kCPU);
-int M = 1;
+int M = 1000;
 int D = 3;
 int N = 3;
 
@@ -47,7 +47,7 @@ TensorMatDual jac(const TensorDual& t, const TensorDual& y,
   jac.index_put_({Slice(), Slice(1,2), Slice(2,3)}, j12.unsqueeze(2));
   return jac; //Return the through copy elision
 }
-
+ 
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> vdpEvents(torch::Tensor& t, 
                                                                   torch::Tensor& y, 
@@ -88,9 +88,10 @@ int main(int argc, char *argv[])
   TensorDual y = TensorDual(torch::zeros({M, D}, torch::kF64).to(device), torch::eye(D).repeat({M,1,1}).to(torch::kF64).to(device));
   for (int i=0; i < M; i++) {
     y.r.index_put_({i, 0}, 2.0+0.0001*i);
+    y.r.index_put_({i, 2}, 1.0+0.001*i);
   }
   y.r.index_put_({Slice(), 1}, 0.0);
-  y.r.index_put_({Slice(), 2}, 1.0);
+ 
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   TensorDual tspan = TensorDual(torch::rand({M, 2}, torch::kFloat64).to(device), torch::zeros({M,2,N}, torch::kFloat64).to(device));
   tspan.r.index_put_({Slice(), 0}, 0.0);
@@ -111,30 +112,37 @@ int main(int argc, char *argv[])
   std::cout << "tout=";
   janus::print_tensor(r.tout.r);
   std::cout << "Number of points=" << r.nout << std::endl;
+  std::cout << "Number of points=" << r.nout << std::endl;
   std::cout << "Final count=" << r.count << std::endl;
-  std::cout << "yout real=";
-  janus::print_tensor(r.yout.r);
-  //std::cout << "yout dual=";
-  //janus::print_tensor(r.yout.d);
-  auto x11out = r.yout.r.index({0, 0, Slice()}).contiguous();
-  auto x12out = r.yout.r.index({0, 1, Slice()}).contiguous();
-  //auto x21out = r.yout.r.index({1, 0, Slice()}).contiguous();
-  //auto x22out = r.yout.r.index({1, 1, Slice()}).contiguous();
+  std::vector<int> nouts(M);
+  std::vector<std::vector<double>> x1s(M);
+  std::vector<std::vector<double>> x2s(M);
+  for ( int i=0; i < M; i++) {
+    nouts[i] = r.nout.index({i}).item<int>();
+    x1s[i].resize(nouts[i]);
+    x2s[i].resize(nouts[i]);
+    for ( int j=0; j < nouts[i]; j++) {
+      x1s[i][j] = r.yout.r.index({i, j, 0}).item<double>();
+      x2s[i][j] = r.yout.r.index({i, j, 1}).item<double>();
+    }
+  }
 
-  std::vector<double> x11(x11out.data_ptr<double>(), x11out.data_ptr<double>() + x11out.numel());
-  std::vector<double> x12(x12out.data_ptr<double>(), x12out.data_ptr<double>() + x12out.numel());
-  //std::vector<double> x21(x11out.data_ptr<double>(), x21out.data_ptr<double>() + x21out.numel());
-  //std::vector<double> x22(x12out.data_ptr<double>(), x22out.data_ptr<double>() + x22out.numel());
 
   //Plot p1 vs p2
   plt::figure();
-  plt::plot(x11, x12, "r-");
-  //plt::plot(x21, x22, "b-");
+  for (int i=0; i < M; i++) {
+    plt::plot(x1s[i], x2s[i]);
+  }
+
   plt::xlabel("x1");
   plt::ylabel("x2");
   plt::title("x2 versus x1");
   plt::save("/tmp/x1x2.png");
-  plt::close();
+  plt::close();  std::cout << "Final count=" << r.count << std::endl;
+  std::cout << "yout real=";
+  janus::print_tensor(r.yout.r);
+
+  
 
   return 0;
 }

@@ -722,7 +722,7 @@ namespace janus
           nBuffer = 1;
           nout = torch::zeros({M}, torch::kInt64);
           tout = TensorMatDual(torch::zeros({M, 1, nBuffer}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}, torch::kDouble));
-          yout = TensorMatDual(torch::zeros({M, Ny, nBuffer}, torch::kDouble), torch::zeros({M, Ny, nBuffer, Nd}, torch::kDouble));
+          yout = TensorMatDual(torch::zeros({M, nBuffer, Ny}, torch::kDouble), torch::zeros({M, nBuffer, Ny, Nd}, torch::kDouble));
         }
         else
         {
@@ -730,7 +730,7 @@ namespace janus
           nBuffer = 1 * Refine;
           nout = torch::zeros({M}, torch::kInt64);
           tout = TensorMatDual(torch::zeros({M, 1, nBuffer}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}));
-          yout = TensorMatDual(torch::zeros({M, Ny, nBuffer}, torch::kDouble), torch::zeros({M, Ny, nBuffer, Nd}, torch::kDouble));
+          yout = TensorMatDual(torch::zeros({M, nBuffer, Ny}, torch::kDouble), torch::zeros({M, nBuffer, Ny, Nd}, torch::kDouble));
         }
       }
       else
@@ -1784,13 +1784,14 @@ namespace janus
 
                 if ((nout > tout.r.size(1)).eq(true_tensor).any().item<bool>())
                 {
-                  tout = TensorMatDual::cat(tout, TensorMatDual(torch::zeros({M, 1, nBuffer}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}, torch::kDouble)));
-                  yout = TensorMatDual::cat(yout, TensorMatDual(torch::zeros({M, Ny, nBuffer}, torch::kDouble), torch::zeros({M, Ny, nBuffer, Nd}, torch::kDouble)));
+                  tout = TensorMatDual::cat(tout, TensorMatDual(torch::zeros({M, nBuffer, 1}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}, torch::kDouble)), 1);
+                  yout = TensorMatDual::cat(yout, TensorMatDual(torch::zeros({M, nBuffer, Ny}, torch::kDouble), torch::zeros({M, nBuffer, Ny, Nd}, torch::kDouble)), 1);
                 }
                 
-
-                tout.index_put_({m1_12_1, Slice(0,1), nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
-                yout.index_put_({m1_12_1, Slice(), nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
+                //tout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
+                //yout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
+                tout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
+                yout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
                 //std::cerr << "m1_12_1 = " << m1_12_1 << "\n";
                 //std::cerr << "t = " << t << "\n";
                 //std::cerr << "count=" << count << "\n";
