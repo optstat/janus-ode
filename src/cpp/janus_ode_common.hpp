@@ -33,8 +33,8 @@ torch::Tensor ppH(const torch::Tensor &x,
                   std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for p and no gradient tracking for x
-    auto xt = x.clone().detach_().set_requires_grad(false);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(false);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -53,8 +53,8 @@ torch::Tensor ppppH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for x and no gradient tracking for p
-    auto xt = x.clone().detach_().set_requires_grad(false);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(false);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -102,8 +102,8 @@ torch::Tensor pxpxH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for x and no gradient tracking for p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(false);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(false);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -150,8 +150,8 @@ torch::Tensor pxppH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -200,8 +200,8 @@ torch::Tensor pppxH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -252,8 +252,8 @@ torch::Tensor ppppppH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(false);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(false);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -316,8 +316,8 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(false);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(false);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -380,8 +380,8 @@ torch::Tensor pppppxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
     if (xt.grad().defined()) {
       xt.grad().zero_();
     }
@@ -456,8 +456,8 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -526,8 +526,8 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -598,8 +598,8 @@ torch::Tensor pppxppH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -670,8 +670,8 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -742,8 +742,8 @@ torch::Tensor pxppppH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone().detach_().set_requires_grad(true);
-    auto pt = p.clone().detach_().set_requires_grad(true);
+    auto xt = x.clone().detach_().requires_grad_(true);
+    auto pt = p.clone().detach_().requires_grad_(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
