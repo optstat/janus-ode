@@ -9,6 +9,43 @@ using TensorIndex = torch::indexing::TensorIndex;
 using Slice = torch::indexing::Slice;
 using namespace janus;
 
+
+torch::Tensor control(const torch::Tensor& x1, 
+                      const torch::Tensor& x2,
+                      const torch::Tensor& p1,
+                      const torch::Tensor& p2, 
+                      double W=1.0) {
+    auto u = -p2 * ((1 - x1 * x1) * x2 - x1) / W;
+    return u; // Return through copy elision
+}
+
+torch::Tensor hamiltonian(const torch::Tensor& x, 
+                          const torch::Tensor& p, 
+                          double W) {
+    torch::Tensor p1 = p.index({Slice(), 0});  
+    torch::Tensor p2 = p.index({Slice(), 1});  
+    torch::Tensor x1 = x.index({Slice(), 0});  
+    torch::Tensor x2 = x.index({Slice(), 1});  
+    torch::Tensor u = control(x1, x2, p1, p2, W);
+
+    auto H = p1 * x2 + p2 * u * ((1 - x1 * x1) * x2 - x1) + W * u * u / 2 + 1;
+    return H;
+}
+
+
+
+TEST(HamiltonianTest, ppppppHTest)
+{
+    torch::Tensor x = torch::tensor({0.5, -0.5}).view({1, -1}); // example tensor
+    torch::Tensor p = torch::tensor({1.0, -1.0}).view({1, -1}); // example tensor
+    double W = 1.0; // example parameter
+
+    auto result = ppppppH<double>(x, p, W, hamiltonian);
+
+    
+
+}
+
 TEST(HamiltonianTest, dynsTest) 
 {
     //Test for the construction of the dynamics for vdp oscillator
@@ -139,8 +176,8 @@ TensorMatDual vdpjac(const TensorDual& y,
 
   //-2*p2*(x2*(1-x1*x1)-x1).pow(2)/W
   jac.index_put_({Slice(), 3, 1},  -2*(x2*(1-x1*x1)-x1).pow(2)/W);
-  jac.index_put_({Slice(), 3, 2}, -2 * p2 * (-x1 + x2 * (1 - x1 * x1))*(-4 * x1 * x2 - 2) / W);
-  jac.index_put_({Slice(), 3, 3}, -2 * p2*(2 - 2 * x1 * x1)*(-x1 + x2 * (1 - x1 * x1)) / W);
+  jac.index_put_({Slice(), 3, 2}, 4*p2*(x2*(1-x1*x1)-x1)*(2*x1*x2+1) / W);
+  jac.index_put_({Slice(), 3, 3}, -4*p2*(x2*(1-x1*x1)-x1)*(1-x1*x1)/W);
 
 
   return jac;
@@ -155,6 +192,9 @@ TensorDual rk4( const TensorDual &y, double W, double h)
     auto k4 = vdpdyns(y + h*k3, W);
     return y + h/6*(k1 + 2*k2 + 2*k3 + k4);
 }
+
+
+
 
 
 
