@@ -12,7 +12,7 @@ namespace plt = matplotlibcpp;
 */
 using Slice = torch::indexing::Slice;
 torch::Device device(torch::kCPU);
-int M = 1000;
+int M = 1;
 int D = 3;
 int N = 3;
 

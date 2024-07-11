@@ -2167,10 +2167,11 @@ namespace janus
               //auto B_r = torch::eye(Ny, torch::kDouble).repeat({indxs.size(0), 1, 1}) * real_part.unsqueeze(2) - Jac.index({indxs});
 
               //auto B_i = torch::eye(Ny, torch::kDouble).repeat({indxs.size(0), 1, 1}) * imag_part.unsqueeze(2);
+              auto Jeye = Jaci.eye();
+              auto Jeyereal = TensorMatDual::einsum("mij, mkl->mij", Jeye , real_part.unsqueeze(2)); 
+              auto B_r =  Jeyereal- Jaci;
 
-              auto B_r = TensorMatDual::einsum("mij, mkl->mij", Jaci.eye() , real_part.unsqueeze(2)) - Jaci;
-
-              auto B_i = TensorMatDual::einsum("mij, mkl->mij", Jaci.eye() , imag_part.unsqueeze(2));
+              auto B_i = TensorMatDual::einsum("mij, mkl->mij", Jeye , imag_part.unsqueeze(2));
 
               Bs = TensorMatDual(torch::complex(B_r.r, B_i.r), torch::complex(B_r.d, B_i.d));
               auto qrs = QRTeDC(Bs);
