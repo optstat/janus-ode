@@ -1241,9 +1241,9 @@ namespace janus
           auto m1_5 = m1 & (NbrStg == stage) & (0.1 * h.abs() <= TensorDual::einsum("mi,->mi",t.abs() , eps)) & ~m1_continue;
           if (m1_5.eq(true_tensor).any().item<bool>())
           {
-            std::cerr << Solver_Name << " Step size too small " << std::endl;
+            std::cerr << Solver_Name << "Warning: Step size too small " << std::endl;
             // TO DO: Modify this so that not all samples are rejected
-            exit(1);
+            //exit(1);
           }
           auto m1_6 = m1 & (NbrStg == stage) & ~m1_continue; // Make sure none of the continue or break flags are set
           if (m1_6.eq(true_tensor).any().item<bool>())

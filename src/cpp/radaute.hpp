@@ -1125,7 +1125,7 @@ namespace janus
           {
             std::cerr << Solver_Name << " Step size too small " << std::endl;
             // TO DO: Modify this so that not all samples are rejected
-            exit(1);
+            //exit(1);
           }
           auto m1_6 = m1 & (NbrStg == stage) & ~m1_continue; // Make sure none of the continue or break flags are set
           ExpmNs.index_put_({m1_6}, (NbrStg.index({m1_6}) + 1.0).to(torch::kDouble) / (2.0 * NbrStg.index({m1_6})).to(torch::kDouble));
