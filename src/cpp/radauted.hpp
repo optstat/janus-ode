@@ -1243,7 +1243,7 @@ namespace janus
           {
             std::cerr << Solver_Name << "Warning: Step size too small " << std::endl;
             // TO DO: Modify this so that not all samples are rejected
-            //exit(1);
+            m1.index_put_({m1_5}, false); //This effectively ends the loop for these samples
           }
           auto m1_6 = m1 & (NbrStg == stage) & ~m1_continue; // Make sure none of the continue or break flags are set
           if (m1_6.eq(true_tensor).any().item<bool>())
