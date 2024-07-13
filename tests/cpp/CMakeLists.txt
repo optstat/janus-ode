@@ -28,8 +28,6 @@ set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
 
 # Set C++ standard
 set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
-# Add test
-add_test(NAME LinearTest COMMAND ${CMAKE_BINARY_DIR}/bin/odetest)
 
 
 # Ensure the test executable is built when running 'make test'

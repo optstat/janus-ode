@@ -106,9 +106,17 @@ int main(int argc, char *argv[])
   options.AbsTol = torch::tensor({1e-16}, torch::kFloat64).to(device);
   //Create an instance of the Radau5 class
   TensorDual params = TensorDual(torch::empty({0,0}, torch::kFloat64).to(device), torch::zeros({M,2,N}, torch::kFloat64).to(device));
+  //Run this multiple times to make sure there are no memory leaks
+  for ( int i=0; i < 100; i++)
+  {
+    janus::RadauTeD r(vdpdyns, jac, tspan, y, options, params);   // Pass the correct arguments to the constructor
+    //Call the solve method of the Radau5 class
+    r.solve();
+  }
   janus::RadauTeD r(vdpdyns, jac, tspan, y, options, params);   // Pass the correct arguments to the constructor
   //Call the solve method of the Radau5 class
   r.solve();
+
   std::cout << "tout=";
   janus::print_tensor(r.tout.r);
   std::cout << "Number of points=" << r.nout << std::endl;

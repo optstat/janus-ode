@@ -124,6 +124,11 @@ int main(int argc, char *argv[])
   options.AbsTol = torch::tensor({1e-16}, torch::kFloat64).to(device);
   //Create an instance of the Radau5 class
   torch::Tensor params = torch::empty({0}, torch::kFloat64).to(device);
+  //Check for memory leaks
+  for ( int i=0; i < 100; i++) {
+    janus::RadauTe r(vdpdyns_ham, jac_ham, tspan, y, options, params);   // Pass the correct
+    r.solve();
+  }
   janus::RadauTe r(vdpdyns_ham, jac_ham, tspan, y, options, params);   // Pass the correct arguments to the constructor
   //Call the solve method of the Radau5 class
   r.solve();

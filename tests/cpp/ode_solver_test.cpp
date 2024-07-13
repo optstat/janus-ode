@@ -28,7 +28,7 @@ torch::Tensor hamiltonian(const torch::Tensor& x,
     torch::Tensor x2 = x.index({Slice(), 1});  
     torch::Tensor u = control(x1, x2, p1, p2, W);
 
-    auto H = p1 * x2 + p2 * u * ((1 - x1 * x1) * x2 - x1) + W * u * u / 2 + 1;
+    auto H = p1*p1*p1 * x2 + p2*p2*p2 * u * ((1 - x1 * x1) * x2 - x1) + W * u * u / 2 + 1;
     return H;
 }
 
@@ -36,8 +36,8 @@ torch::Tensor hamiltonian(const torch::Tensor& x,
 
 TEST(HamiltonianTest, ppppppHTest)
 {
-    torch::Tensor x = torch::tensor({0.5, -0.5}).view({1, -1}); // example tensor
-    torch::Tensor p = torch::tensor({1.0, -1.0}).view({1, -1}); // example tensor
+    torch::Tensor x = torch::rand({2, 4}); // example tensor
+    torch::Tensor p = torch::rand({2, 4}); // example tensor
     double W = 1.0; // example parameter
 
     auto result = ppppppH<double>(x, p, W, hamiltonian);
