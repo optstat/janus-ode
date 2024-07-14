@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
   //set the device
   //torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
   torch::Device device(torch::kCPU);
-  int M = 1000;
+  int M = 1;
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   torch::Tensor y = torch::zeros({M, 3}, torch::kF64).to(device);
   for (int i=0; i < M; i++) {
@@ -114,6 +114,12 @@ int main(int argc, char *argv[])
   options.AbsTol = torch::tensor({1e-16}, torch::kFloat64).to(device);
   //Create an instance of the Radau5 class
   torch::Tensor params = torch::empty({0}, torch::kFloat64).to(device);
+  //Check for memory leaks
+  for ( int i=0; i < 1000; i++) {
+    std::cerr << "running iteration " << i << "for memory leaks" << std::endl;
+    janus::RadauTe r(vdpdyns, jac, tspan, y, options, params);   
+    r.solve();
+  }
   janus::RadauTe r(vdpdyns, jac, tspan, y, options, params);   // Pass the correct arguments to the constructor
   //Call the solve method of the Radau5 class
   r.solve();

@@ -99,8 +99,8 @@ TEST(HamiltonianTest, ppppppHTest)
     torch::Tensor p = torch::rand({2, 4}); // example tensor
     double W = 1.0; // example parameter
 
-    auto result = ppppppH<double>(x, p, W, hamiltonian);
 
+    auto result = ppppppH<double>(x, p, W, hamiltonian);
     
 
 }
@@ -327,14 +327,18 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     auto pxHval = janus::pxH<double>(x, p, W, H); //dot{p}
     EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(0, 2)}), pxHval));
     //Now compare with the APIs
-    
-    auto implDyns = evalDynsDual<double>(yted, W, H);
-    //std::cerr << "implDyns=";
-    //janus::print_dual(implDyns);
-    //std::cerr << "dydt=";
-    //janus::print_dual(dydt);
-    EXPECT_TRUE(torch::allclose(dydt.r, implDyns.r));
-    EXPECT_TRUE(torch::allclose(dydt.d, implDyns.d));    
+    //Check for memory leak
+    std::cerr << "Checking for memory leaks in explicit dynamics calculation" << std::endl;
+    for ( int i=0; i < 10000; i++)
+    {
+        auto implDyns = evalDynsDual<double>(yted, W, H);
+        //std::cerr << "implDyns=";
+        //janus::print_dual(implDyns);
+        //std::cerr << "dydt=";
+        //janus::print_dual(dydt);
+        EXPECT_TRUE(torch::allclose(dydt.r, implDyns.r));
+        EXPECT_TRUE(torch::allclose(dydt.d, implDyns.d));    
+    }
 }
 
 TEST(HamiltonianTest, JacExplVsImplTest) 
@@ -370,6 +374,11 @@ TEST(HamiltonianTest, JacExplVsImplTest)
         yted = rk4(yted, W, h);
     }
     auto jacExpl = vdpjac(yted, W);//Calculate the dynamics at the new location
+    std::cerr << "Checking for memory leaks in explicit jacobian calculation" << std::endl;
+    for (int i=0; i < 10000; i++)
+    {
+        auto jacImpl = evalJacDual<double>(yted, W, H);
+    }
     auto jacImpl = evalJacDual<double>(yted, W, H);
     EXPECT_TRUE(torch::allclose(jacExpl.r, jacImpl.r));
     //std::cerr << "yted=";

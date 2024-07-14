@@ -140,6 +140,10 @@ torch::Tensor pxH(const torch::Tensor &x,
     // Compute the gradient of Hvalue with respect to xt
     //auto grad_H_wrt_x = torch::autograd::grad({Hvalue}, {xt}, {torch::ones_like(Hvalue)})[0];
     auto grad_H_wrt_x = safe_jac(Hvalue, xt);
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
+    grad_H_wrt_x.detach_();
 
     return grad_H_wrt_x;
 }
@@ -163,6 +167,9 @@ torch::Tensor ppH(const torch::Tensor &x,
 
     // Compute the gradient of Hvalue with respect to pt
     auto grad_H_wrt_p = torch::autograd::grad({Hvalue}, {pt}, {torch::ones_like(Hvalue)})[0];
+    pt.detach_();
+    Hvalue.detach_();
+    grad_H_wrt_p.detach_();
     return grad_H_wrt_p;
 }
 
@@ -212,10 +219,13 @@ torch::Tensor ppppH(const torch::Tensor &x,
                                               {torch::ones_like(first_order_grad.index({Slice(), i}))} 
                                               )[0];*/
         auto grad_p_i = safe_jac(first_order_grad.index({Slice(), i}), pt);
+        grad_p_i.detach_();
        
         // Assign the gradient to the corresponding row of the Hessian matrix
         hessian.index_put_({Slice(), i, Slice()}, grad_p_i);
     }
+    pt.detach_();
+    Hvalue.detach_();
     
 
     // Return the Hessian
@@ -269,9 +279,11 @@ torch::Tensor pxpxH(const torch::Tensor &x,
         auto grad_x_i = safe_jac(first_order_grad.index({Slice(), i}), xt);
 
         // Assign the gradient to the corresponding column of the Hessian matrix
+        grad_x_i.detach_();
         hessian.index_put_({Slice(), i}, grad_x_i);
     }
-
+    xt.detach_();
+    Hvalue.detach_();
     // Return the Hessian
     return hessian;
 }
@@ -326,8 +338,12 @@ torch::Tensor pxppH(const torch::Tensor &x,
         auto grad_H_p_i = safe_jac(grad_H_p.index({Slice(), i}), xt);
         // Assign the gradient to the corresponding slice of the mixed Hessian matrix
         //mixed_hessian.select(1, i).copy_(grad_H_p_i);
+        grad_H_p_i.detach_();
         mixed_hessian.index_put_({Slice(), i}, grad_H_p_i);
     }
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
 
     // Return the mixed Hessian
     return mixed_hessian;
@@ -381,9 +397,12 @@ torch::Tensor pppxH(const torch::Tensor &x,
         auto grad_H_x_i = safe_jac(grad_H_x.index({Slice(), i}), pt);
         // Assign the gradient to the corresponding slice of the mixed Hessian matrix
         //mixed_hessian.select(1, i).copy_(grad_H_x_i);
+        grad_H_x_i.detach_();
         mixed_hessian.index_put_({Slice(), i}, grad_H_x_i);
     }
-    
+    pt.detach_();
+    xt.detach_();
+    Hvalue.detach_();
 
     // Return the mixed Hessian
     return mixed_hessian;
@@ -449,12 +468,16 @@ torch::Tensor ppppppH(const torch::Tensor &x,
                                                      true,
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({torch::indexing::Slice(), j}), pt);
+            grad_H_p_ij.detach_();
 
             // Store the third-order gradient
             third_order_derivative.index_put_({torch::indexing::Slice(), i, j}, grad_H_p_ij);
         }
+        grad_H_p_i.detach_();
     
     }
+    pt.detach_();
+    Hvalue.detach_();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -517,10 +540,14 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
+            grad_H_p_ij.detach_();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
+        grad_H_p_i.detach_();
     }
+    xt.detach_();
+    Hvalue.detach_();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -596,10 +623,16 @@ torch::Tensor pppppxH(const torch::Tensor &x,
                                                        true, 
                                                        true)[0];*/
             auto grad_H_x_p_ij = safe_jac(grad_H_x_p_i.index({Slice(), j}), pt);
+            grad_H_x_p_ij.detach_();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_x_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_x_p_ij);
         }
+        grad_H_x_p_i.detach_();
     }
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
+
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -670,9 +703,14 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_x_ij = safe_jac(grad_H_x_i.index({Slice(), j}), pt);
+            grad_H_x_ij.detach_();
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_x_ij);
         }
+        grad_H_x_i.detach_();
     }
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -743,10 +781,15 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
+            grad_H_p_ij.detach_();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
+        grad_H_p_i.detach_();
     }
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -819,10 +862,15 @@ torch::Tensor pppxppH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), pt);
+            grad_H_p_ij.detach_();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
+        grad_H_p_i.detach_();
     }
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -894,10 +942,15 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
+            grad_H_p_ij.detach_();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
+        grad_H_p_i.detach_();
     }
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -971,10 +1024,15 @@ torch::Tensor pxppppH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
+            grad_H_p_ij.detach_();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
+        grad_H_p_i.detach_();
     }
+    xt.detach_();
+    pt.detach_();
+    Hvalue.detach_();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -1038,9 +1096,11 @@ torch::Tensor evalDyns(const torch::Tensor &y,
     // Return the dynamics
     auto dotp = grad_H_x;
     auto dotx = grad_H_p;
-
-    auto dyns = torch::cat({dotp, dotx},1);
-    return dyns;
+    auto dyns = torch::zeros({M, 2*N}, y.options());
+    //auto dyns = torch::cat({dotp, dotx},1);
+    dyns.index_put_({Slice(), Slice(0, N)}, dotp);
+    dyns.index_put_({Slice(), Slice(N, 2*N)}, dotx);
+    return dyns.clone();
 }
 
 template<typename T>

@@ -44,10 +44,31 @@ torch::Tensor vdpdyns_ham(const torch::Tensor& t, const torch::Tensor& y, const 
   return evalDyns<double>(y, W, hamiltonian);
 }
 
+torch::Tensor vdpdyns(const torch::Tensor& t, const torch::Tensor& y, 
+                      const torch::Tensor& params) {
+  torch::Tensor ydot = torch::zeros_like(y).to(y.device());
+  ydot.index_put_({Slice(), 0}, y.index({Slice(), 1}));
+  ydot.index_put_({Slice(), 1}, y.index({Slice(), 2})*(1.0 - y.index({Slice(), 0}).square()) * y.index({Slice(), 1}) - y.index({Slice(), 0}));
+  return ydot.clone(); 
+}
+
+
+
 
 torch::Tensor jac_ham(const torch::Tensor& t, const torch::Tensor& y, 
                   const torch::Tensor& params) {
   return evalJac<double>(y, W, hamiltonian);
+}
+
+torch::Tensor jac(const torch::Tensor& t, const torch::Tensor& y, 
+                  const torch::Tensor& params) {
+  int M = y.size(0);
+  torch::Tensor jac = torch::zeros({y.size(1), y.size(1)}, torch::kFloat64).repeat({M, 1, 1}).to(y.device());
+  jac.index_put_({Slice(), 0, 1}, 1.0);
+  jac.index_put_({Slice(), 1, 0}, -2*y.index({Slice(), 2})*y.index({Slice(), 0})*y.index({Slice(), 1})-1);
+  jac.index_put_({Slice(), 1, 1}, y.index({Slice(), 2})*(1-y.index({Slice(), 0}).square())); 
+  jac.index_put_({Slice(), 1, 2}, (1.0-y.index({Slice(), 0}).square())*y.index({Slice(), 1}));
+  return jac; //Return the through copy elision
 }
 
 
@@ -103,6 +124,8 @@ int main(int argc, char *argv[])
   torch::Device device(torch::kCPU);
   int M = 1;
   int N = 2;
+  for ( int i=0; i < 1000; i++) {
+
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   torch::Tensor y = torch::zeros({M, 2*N}, torch::kF64).to(device);
   for (int i=0; i < M; i++) {
@@ -114,7 +137,7 @@ int main(int argc, char *argv[])
   torch::Tensor tspan = torch::rand({M, 2}, torch::kFloat64).to(device);
   tspan.index_put_({Slice(), 0}, 0.0);
   //tspan.index_put_({Slice(), 1}, ((3.0-2.0*std::log(2.0))*y.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
-  tspan.index_put_({Slice(), 1}, 100.0);
+  tspan.index_put_({Slice(), 1}, 1.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   janus::OptionsTe options = janus::OptionsTe(); //Initialize with default options
@@ -124,11 +147,13 @@ int main(int argc, char *argv[])
   options.AbsTol = torch::tensor({1e-16}, torch::kFloat64).to(device);
   //Create an instance of the Radau5 class
   torch::Tensor params = torch::empty({0}, torch::kFloat64).to(device);
-  //Check for memory leaks
-  for ( int i=0; i < 100; i++) {
+  //Check for memory leaks 
+    std::cerr << "Running iteration number " << i << std::endl;
     janus::RadauTe r(vdpdyns_ham, jac_ham, tspan, y, options, params);   // Pass the correct
     r.solve();
+    
   }
+  /*
   janus::RadauTe r(vdpdyns_ham, jac_ham, tspan, y, options, params);   // Pass the correct arguments to the constructor
   //Call the solve method of the Radau5 class
   r.solve();
@@ -168,6 +193,8 @@ int main(int argc, char *argv[])
   plt::title("x2 versus x1");
   plt::save("/tmp/x1x2.png");
   plt::close();
+  */
+    
 
   return 0;
 }

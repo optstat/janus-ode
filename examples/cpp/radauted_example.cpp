@@ -109,6 +109,7 @@ int main(int argc, char *argv[])
   //Run this multiple times to make sure there are no memory leaks
   for ( int i=0; i < 100; i++)
   {
+    std::cerr << "Running iteration " << i << std::endl;
     janus::RadauTeD r(vdpdyns, jac, tspan, y, options, params);   // Pass the correct arguments to the constructor
     //Call the solve method of the Radau5 class
     r.solve();
