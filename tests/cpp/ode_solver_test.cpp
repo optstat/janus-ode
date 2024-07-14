@@ -34,6 +34,65 @@ torch::Tensor hamiltonian(const torch::Tensor& x,
 
 
 
+
+
+
+
+
+TEST(HamiltonianTest, pxHTest)
+{
+    torch::Tensor x = torch::rand({{2, 2}}, dtype(torch::kFloat64)); // example tensor
+    torch::Tensor p = torch::rand({{2, 2}}, dtype(torch::kFloat64)); // example tensor
+    double W = 1.0; // example parameter
+
+    auto result = janus::pxH<double>(x, p, W, hamiltonian);
+    //We need to verify the result using finite differences
+    auto result_fd = torch::zeros_like(result);
+    for (int i = 0; i < x.size(1); i++)
+    {
+        auto m = x.index({Slice(), i}) < 1.0;
+        auto h = 1e-8*x.index({Slice(), i}).abs();
+        h.index_put_({m}, 1e-8);
+        auto xp = x.clone();
+        xp.index_put_({Slice(), i}, x.index({Slice(), i}) + h);
+        auto Hp = hamiltonian(xp, p, W);
+        auto xm = x.clone();
+        xm.index_put_({Slice(), i}, x.index({Slice(), i}) - h);
+        auto Hm = hamiltonian(xm, p, W);
+        result_fd.index_put_({Slice(), i}, (Hp - Hm) / (2 * h));
+    }
+    EXPECT_TRUE(torch::allclose(result, result_fd));
+}
+
+TEST(HamiltonianTest, ppHTest)
+{
+    torch::Tensor x = torch::rand({{2, 2}}, dtype(torch::kFloat64)); // example tensor
+    torch::Tensor p = torch::rand({{2, 2}}, dtype(torch::kFloat64)); // example tensor
+    double W = 1.0; // example parameter
+
+    auto result = ppH<double>(x, p, W, hamiltonian);
+    //We need to verify the result using finite differences
+    auto result_fd = torch::zeros_like(result);
+    for (int i = 0; i < p.size(1); i++)
+    {
+        auto m = p.index({Slice(), i}) < 1.0;
+        auto h = 1e-8*p.index({Slice(), i}).abs();
+        h.index_put_({m}, 1e-8);
+        auto pp = p.clone();
+        pp.index_put_({Slice(), i}, p.index({Slice(), i}) + h);
+        auto Hp = hamiltonian(x, pp, W);
+        auto pm = p.clone();
+        pm.index_put_({Slice(), i}, p.index({Slice(), i}) - h);
+        auto Hm = hamiltonian(x, pm, W);
+        result_fd.index_put_({Slice(), i}, (Hp - Hm) / (2 * h));
+    }
+    EXPECT_TRUE(torch::allclose(result, result_fd));
+}
+
+
+
+
+
 TEST(HamiltonianTest, ppppppHTest)
 {
     torch::Tensor x = torch::rand({2, 4}); // example tensor
@@ -265,7 +324,7 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     auto p = yted.r.index({Slice(), Slice(0, 2)});
     auto ppHval = ppH<double>(x, p, W, H);  //dot{x}
     EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(2, 4)}), ppHval));
-    auto pxHval = pxH<double>(x, p, W, H); //dot{p}
+    auto pxHval = janus::pxH<double>(x, p, W, H); //dot{p}
     EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(0, 2)}), pxHval));
     //Now compare with the APIs
     
