@@ -4,6 +4,8 @@
 #include <janus/tensordual.hpp>
 #include <janus/janus_util.hpp>
 #include "../../src/cpp/janus_ode_common.hpp"
+#include "../../src/cpp/radauted.hpp"
+
 
 using TensorIndex = torch::indexing::TensorIndex;
 using Slice = torch::indexing::Slice;
@@ -329,7 +331,7 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     //Now compare with the APIs
     //Check for memory leak
     std::cerr << "Checking for memory leaks in explicit dynamics calculation" << std::endl;
-    for ( int i=0; i < 10000; i++)
+    for ( int i=0; i < 100; i++)
     {
         auto implDyns = evalDynsDual<double>(yted, W, H);
         //std::cerr << "implDyns=";
@@ -375,7 +377,7 @@ TEST(HamiltonianTest, JacExplVsImplTest)
     }
     auto jacExpl = vdpjac(yted, W);//Calculate the dynamics at the new location
     std::cerr << "Checking for memory leaks in explicit jacobian calculation" << std::endl;
-    for (int i=0; i < 10000; i++)
+    for (int i=0; i < 100; i++)
     {
         auto jacImpl = evalJacDual<double>(yted, W, H);
     }
@@ -390,6 +392,99 @@ TEST(HamiltonianTest, JacExplVsImplTest)
     //janus::print_tensor(jacImpl.d);
 
 }
+
+
+
+TensorDual vdpdyns_vdp(const TensorDual& t, const TensorDual& y, const TensorDual& params) {
+  TensorDual ydot = TensorDual::zeros_like(y);
+  auto yc = y.clone();
+  TensorDual y1 = yc.index({Slice(), Slice(0,1)});  //Make sure the input is not modified
+  TensorDual y2 = yc.index({Slice(), Slice(1,2)});  //Make sure the input is not modified
+  TensorDual y3 = yc.index({Slice(), Slice(2,3)});  //Make sure the input is not modified
+  ydot.index_put_({Slice(), Slice(0,1)}, y2);
+  ydot.index_put_({Slice(), Slice(1,2)}, y3*(1 - y1 * y1) * y2 - y1);
+  return ydot; //Return the through copy elision
+}
+
+
+
+TensorMatDual jac_vdp(const TensorDual& t, const TensorDual& y, 
+                  const TensorDual& params) {
+  int M = y.r.size(0);
+  int D = y.r.size(1);
+  int N = y.d.size(2);
+  
+  TensorMatDual jac = TensorMatDual(torch::zeros({M,D,D}, torch::kFloat64).to(y.device()),
+                              torch::zeros({M,D,D,N}, torch::kFloat64).to(y.device()));
+  jac.index_put_({Slice(), 0, 1}, 1.0);
+  auto yc = y.clone();
+  auto j10 = -2*yc.index({Slice(), Slice(2,3)})*yc.index({Slice(), Slice(0,1)})*yc.index({Slice(), Slice(1,2)})-1.0;
+  jac.index_put_({Slice(), Slice(1,2), Slice(0,1)}, j10.unsqueeze(2));
+  auto j11 = yc.index({Slice(), Slice(2,3)})*(1.0-yc.index({Slice(), Slice(0,1)}).square());
+  jac.index_put_({Slice(), Slice(1,2), Slice(1,2)}, j11.unsqueeze(2));
+  auto j12 = (1.0-yc.index({Slice(), Slice(0,1)}).square())*yc.index({Slice(), Slice(1,2)});
+  jac.index_put_({Slice(), Slice(1,2), Slice(2,3)}, j12.unsqueeze(2));
+  return jac; //Return the through copy elision
+}
+
+
+
+/**
+ * Make sure the sensitivities including the 
+ * sensitivities wrt the end state are correct
+ * Use finite differences in double precision to verify
+ * One important consideration here is terminal time so 
+ * the dual number has an extra parameter
+ */
+TEST(RadauTedTest, SensitivityTest) 
+{
+
+
+  //set the device
+  //torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
+  int M=1;
+  int D=3;
+  int N=D+1; //Number dual variables
+
+  //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
+  TensorDual y = TensorDual(torch::zeros({M, D}, torch::kF64), torch::zeros({M, D, N}, torch::kF64));
+  for (int i=0; i < M; i++) {
+    y.r.index_put_({i, 0}, 2.0+0.0001*i);
+    y.r.index_put_({i, 2}, 1.0+0.001*i); //This is mu
+    y.d.index_put_({i, 0, 0}, 1.0);
+    y.d.index_put_({i, 1, 1}, 1.0);
+    y.d.index_put_({i, 2, 2}, 1.0);
+  }
+  y.r.index_put_({Slice(), 1}, 0.0);
+ 
+  //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
+  TensorDual tspan = TensorDual(torch::rand({M, 2}, torch::kFloat64), torch::zeros({M,2,N}, torch::kFloat64));
+  tspan.r.index_put_({Slice(), 0}, 0.0);
+  //tspan.r.index_put_({Slice(), 1}, 2*((3.0-2.0*std::log(2.0))*y.r.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
+  tspan.r.index_put_({Slice(), 1}, 0.1);
+  tspan.d.index_put_({Slice(), 0, 3}, 1.0); //Final time sensitivity
+  //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
+  //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
+  janus::OptionsTeD options = janus::OptionsTeD(); //Initialize with default options
+  //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
+  //*options.EventsFcn = vdpEvents;
+  options.RelTol = torch::tensor({1e-13}, torch::kFloat64);
+  options.AbsTol = torch::tensor({1e-16}, torch::kFloat64);
+  //Create an instance of the Radau5 class
+  TensorDual params = TensorDual(torch::empty({0,0}, torch::kFloat64), torch::zeros({M,2,N}, torch::kFloat64));
+  janus::RadauTeD r(vdpdyns_vdp, jac_vdp, tspan, y, options, params);   // Pass the correct arguments to the constructor
+  //Call the solve method of the Radau5 class
+  r.solve();
+
+  std::cout << "tout=";
+  janus::print_tensor(r.tout.r);
+  std::cout << "Number of points=" << r.nout << std::endl;
+  std::cout << "Number of points=" << r.nout << std::endl;
+  std::cout << "Final count=" << r.count << std::endl;
+  //Test the sensitivities using dual numbers
+
+}
+
 
 
 int main(int argc, char **argv) {

@@ -1040,9 +1040,9 @@ namespace janus
              m1.eq(true_tensor).any().item<bool>()) // line 849 fortran
       {
         count += 1;
-        std::cerr << "count = " << count << std::endl;
-        std::cerr << "countNewt = " << countNewt << std::endl;
-        std::cerr << "t = " << t.r << std::endl;
+        //std::cerr << "count = " << count << std::endl;
+        //std::cerr << "countNewt = " << countNewt << std::endl;
+        //std::cerr << "t = " << t.r << std::endl;
         //std::cerr << "tfinal = " << tfinal.r << std::endl;
 
         // The tensor version of the continue statement is local to the while loop
@@ -1728,7 +1728,7 @@ namespace janus
                                 Scal.index({m1_12_1_3, Slice(start, end)}) /
                                     hhfac.index({m1_12_1_3}));
               }
-
+              //Solution
               y.index_put_({m1_12_1}, y.index({m1_12_1}) + z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2));
               //% Collocation polynomial
               cont.index_put_({m1_12_1, Slice(), Slice(stage - 1, stage)},

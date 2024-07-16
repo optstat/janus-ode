@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
   //set the device
   //torch::Device device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
   torch::Device device(torch::kCPU);
-  int M = 1;
+  int M = 1000;
   int N = 2;
   for ( int i=0; i < 1000; i++) {
 
