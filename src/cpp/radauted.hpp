@@ -2221,7 +2221,9 @@ namespace janus
         if (nzindxs.numel() == 0)
           return; // Nothing to do for this stage
         // valp = ValP.unsqueeze(0) / h.index({mask}).unsqueeze(1);
-        valp = TensorDual::einsum("s, mi->ms", ValP, h.index({mask}).reciprocal());
+        //auto hr = h.index({mask}).reciprocal();
+        //valp = TensorDual::einsum("s, mi->ms", ValP, hr);
+        valp = ValP.unsqueeze(0)/h.index({mask});
         Mw = w.index({mask});
         if (MassFcn)
         {

@@ -456,13 +456,15 @@ TEST(RadauTedTest, SensitivityTest)
     y.d.index_put_({i, 2, 2}, 1.0);
   }
   y.r.index_put_({Slice(), 1}, 0.0);
+  auto y0 = y.clone();//Keep a copy for later
  
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   TensorDual tspan = TensorDual(torch::rand({M, 2}, torch::kFloat64), torch::zeros({M,2,N}, torch::kFloat64));
   tspan.r.index_put_({Slice(), 0}, 0.0);
   //tspan.r.index_put_({Slice(), 1}, 2*((3.0-2.0*std::log(2.0))*y.r.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
-  tspan.r.index_put_({Slice(), 1}, 0.1);
-  tspan.d.index_put_({Slice(), 0, 3}, 1.0); //Final time sensitivity
+  tspan.r.index_put_({Slice(), 1}, 6.0);
+  tspan.d.index_put_({Slice(), 1, 3}, 1.0); //Final time sensitivity
+  auto tspanc = tspan.clone();//Keep a copy for later use
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   janus::OptionsTeD options = janus::OptionsTeD(); //Initialize with default options
@@ -475,13 +477,104 @@ TEST(RadauTedTest, SensitivityTest)
   janus::RadauTeD r(vdpdyns_vdp, jac_vdp, tspan, y, options, params);   // Pass the correct arguments to the constructor
   //Call the solve method of the Radau5 class
   r.solve();
+  auto yr = r.y.clone();
+  
+  //Add test using finite differences to check the sensitivities wrt y10
+  torch::Tensor one = torch::ones({M}, torch::kFloat64);
+  auto hy1 = 1e-8*torch::max(y.r.index({Slice(), 0}).abs(), one);
+  auto y1p = y0.clone();
+  y1p.index_put_({Slice(), 0}, y0.index({Slice(), 0}) + hy1);
+  janus::RadauTeD solver1(vdpdyns_vdp, jac_vdp, tspan, y1p, options, params);   // Pass the correct arguments to the constructor
+  //Call the solve method of the Radau5 class
+  solver1.solve();
+  auto y1pf = solver1.y.clone();
+  auto y1m = y0.clone();
+  y1m.index_put_({Slice(), 0}, y0.index({Slice(), 0}) - hy1);
+  janus::RadauTeD solver2(vdpdyns_vdp, jac_vdp, tspan, y1m, options, params);   // Pass the correct arguments to the constructor
+  solver2.solve();
+  auto y1mf = solver2.y.clone();
+  auto dy1dy10 = (y1pf.r.index({Slice(), 0}) - y1mf.r.index({Slice(), 0}))/(2*hy1);
+  auto dy2dy10 = (y1pf.r.index({Slice(), 1}) - y1mf.r.index({Slice(), 1}))/(2*hy1);
+  auto dy3dy10 = (y1pf.r.index({Slice(), 2}) - y1mf.r.index({Slice(), 2}))/(2*hy1);
+  EXPECT_TRUE(torch::allclose(dy1dy10, yr.d.index({Slice(), 0, 0})));
+  EXPECT_TRUE(torch::allclose(dy2dy10, yr.d.index({Slice(), 1, 0})));
+  EXPECT_TRUE(torch::allclose(dy3dy10, yr.d.index({Slice(), 2, 0})));
 
-  std::cout << "tout=";
-  janus::print_tensor(r.tout.r);
-  std::cout << "Number of points=" << r.nout << std::endl;
-  std::cout << "Number of points=" << r.nout << std::endl;
-  std::cout << "Final count=" << r.count << std::endl;
-  //Test the sensitivities using dual numbers
+  //Add test using finite differences to check the sensitivities wrt y20
+  auto hy2 = 1e-8*torch::max(y.r.index({Slice(), 1}).abs(), one);
+  auto y2p = y0.clone();
+  y2p.index_put_({Slice(), 1}, y0.index({Slice(), 1}) + hy2);
+  janus::RadauTeD solver3(vdpdyns_vdp, jac_vdp, tspan, y2p, options, params);   // Pass the correct arguments to the constructor
+  //Call the solve method of the Radau5 class
+  solver3.solve();
+  auto y2pf = solver3.y.clone();
+  auto y2m = y0.clone();
+  y2m.index_put_({Slice(), 1}, y0.index({Slice(), 1}) - hy2);
+  janus::RadauTeD solver4(vdpdyns_vdp, jac_vdp, tspan, y2m, options, params);   // Pass the correct arguments to the constructor
+  solver4.solve();
+  auto y2mf = solver4.y.clone();
+  auto dy1dy20 = (y2pf.r.index({Slice(), 0}) - y2mf.r.index({Slice(), 0}))/(2*hy2);
+  auto dy2dy20 = (y2pf.r.index({Slice(), 1}) - y2mf.r.index({Slice(), 1}))/(2*hy2);
+  auto dy3dy20 = (y2pf.r.index({Slice(), 2}) - y2mf.r.index({Slice(), 2}))/(2*hy2);
+  EXPECT_TRUE(torch::allclose(dy1dy20, yr.d.index({Slice(), 0, 1})));
+  EXPECT_TRUE(torch::allclose(dy2dy20, yr.d.index({Slice(), 1, 1})));
+  EXPECT_TRUE(torch::allclose(dy3dy20, yr.d.index({Slice(), 2, 1})));
+  
+
+  //Add test using finite differences to check the sensitivities wrt y30
+  auto hy3 = 1e-8*torch::max(y.r.index({Slice(), 2}).abs(), one);
+  auto y3p = y0.clone();
+  y3p.index_put_({Slice(), 2}, y0.index({Slice(), 2}) + hy3);
+  janus::RadauTeD solver5(vdpdyns_vdp, jac_vdp, tspan, y3p, options, params);   // Pass the correct arguments to the constructor
+  //Call the solve method of the Radau5 class
+  solver5.solve();
+  auto y3pf = solver5.y.clone();
+  auto y3m = y0.clone();
+  y3m.index_put_({Slice(), 2}, y0.index({Slice(), 2}) - hy2);
+  janus::RadauTeD solver6(vdpdyns_vdp, jac_vdp, tspan, y3m, options, params);   // Pass the correct arguments to the constructor
+  solver6.solve();
+  auto y3mf = solver6.y.clone();
+  auto dy1dy30 = (y3pf.r.index({Slice(), 0}) - y3mf.r.index({Slice(), 0}))/(2*hy3);
+  auto dy2dy30 = (y3pf.r.index({Slice(), 1}) - y3mf.r.index({Slice(), 1}))/(2*hy3);
+  auto dy3dy30 = (y3pf.r.index({Slice(), 2}) - y3mf.r.index({Slice(), 2}))/(2*hy3);
+  EXPECT_TRUE(torch::allclose(dy1dy30, yr.d.index({Slice(), 0, 2})));
+  EXPECT_TRUE(torch::allclose(dy2dy30, yr.d.index({Slice(), 1, 2})));
+  EXPECT_TRUE(torch::allclose(dy3dy30, yr.d.index({Slice(), 2, 2})));
+
+  //Add test using finite differences to check the sensitivities wrt final time
+  auto hft = 1e-8*torch::max(tspan.r.index({Slice(), 1}).abs(), one);
+  auto tspanp = tspan.clone();
+  tspanp.index_put_({Slice(), 1}, tspanp.index({Slice(), 1}) + hft);
+  auto y01 = y0.clone();
+  janus::RadauTeD solver7(vdpdyns_vdp, jac_vdp, tspanp, y01, options, params);   // Pass the correct arguments to the constructor
+  //Call the solve method of the Radau5 class
+  solver7.solve();
+  auto ypf = solver7.y.clone();
+  auto y02 = y0.clone();
+  auto tspanm = tspan.clone();
+  tspanm.index_put_({Slice(), 1}, tspanm.index({Slice(), 1}) - hft);
+  janus::RadauTeD solver8(vdpdyns_vdp, jac_vdp, tspan, y02, options, params);   // Pass the correct arguments to the constructor
+  solver8.solve();
+  auto ymf = solver8.y.clone();
+  auto dy1dft = (ypf.r.index({Slice(), 0}) - ymf.r.index({Slice(), 0}))/(2*hft);
+  auto dy2dft = (ypf.r.index({Slice(), 1}) - ymf.r.index({Slice(), 1}))/(2*hft);
+  auto dy3dft = (ypf.r.index({Slice(), 2}) - ymf.r.index({Slice(), 2}))/(2*hft);
+  EXPECT_TRUE(torch::allclose(dy1dft, 0.5*yr.d.index({Slice(), 0, 3})));
+  std::cerr << "dy1dft=";
+  janus::print_tensor(dy1dft);
+  std::cerr << "yr.d.index({Slice(), 0, 3}))=";
+  janus::print_tensor(yr.d.index({Slice(), 0, 3}));
+  EXPECT_TRUE(torch::allclose(dy2dft, 0.5*yr.d.index({Slice(), 1, 3})));
+  std::cerr << "dy2dft=";
+  janus::print_tensor(dy2dft);
+  std::cerr << "yr.d.index({Slice(), 1, 3}))=";
+  janus::print_tensor(yr.d.index({Slice(), 1, 3}));
+  EXPECT_TRUE(torch::allclose(dy3dft, 0.5*yr.d.index({Slice(), 2, 3})));
+  std::cerr << "dy3dft=";
+  janus::print_tensor(dy3dft);
+  std::cerr << "yr.d.index({Slice(), 2, 3}))=";
+  janus::print_tensor(yr.d.index({Slice(), 2, 3}));
+
 
 }
 
