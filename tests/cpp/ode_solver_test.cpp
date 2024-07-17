@@ -553,23 +553,23 @@ TEST(RadauTedTest, SensitivityTest)
   auto y02 = y0.clone();
   auto tspanm = tspan.clone();
   tspanm.index_put_({Slice(), 1}, tspanm.index({Slice(), 1}) - hft);
-  janus::RadauTeD solver8(vdpdyns_vdp, jac_vdp, tspan, y02, options, params);   // Pass the correct arguments to the constructor
+  janus::RadauTeD solver8(vdpdyns_vdp, jac_vdp, tspanm, y02, options, params);   // Pass the correct arguments to the constructor
   solver8.solve();
   auto ymf = solver8.y.clone();
   auto dy1dft = (ypf.r.index({Slice(), 0}) - ymf.r.index({Slice(), 0}))/(2*hft);
   auto dy2dft = (ypf.r.index({Slice(), 1}) - ymf.r.index({Slice(), 1}))/(2*hft);
   auto dy3dft = (ypf.r.index({Slice(), 2}) - ymf.r.index({Slice(), 2}))/(2*hft);
-  EXPECT_TRUE(torch::allclose(dy1dft, 0.5*yr.d.index({Slice(), 0, 3})));
+  EXPECT_TRUE(torch::allclose(dy1dft, yr.d.index({Slice(), 0, 3})));
   std::cerr << "dy1dft=";
   janus::print_tensor(dy1dft);
   std::cerr << "yr.d.index({Slice(), 0, 3}))=";
   janus::print_tensor(yr.d.index({Slice(), 0, 3}));
-  EXPECT_TRUE(torch::allclose(dy2dft, 0.5*yr.d.index({Slice(), 1, 3})));
+  EXPECT_TRUE(torch::allclose(dy2dft, yr.d.index({Slice(), 1, 3})));
   std::cerr << "dy2dft=";
   janus::print_tensor(dy2dft);
   std::cerr << "yr.d.index({Slice(), 1, 3}))=";
   janus::print_tensor(yr.d.index({Slice(), 1, 3}));
-  EXPECT_TRUE(torch::allclose(dy3dft, 0.5*yr.d.index({Slice(), 2, 3})));
+  EXPECT_TRUE(torch::allclose(dy3dft, yr.d.index({Slice(), 2, 3})));
   std::cerr << "dy3dft=";
   janus::print_tensor(dy3dft);
   std::cerr << "yr.d.index({Slice(), 2, 3}))=";

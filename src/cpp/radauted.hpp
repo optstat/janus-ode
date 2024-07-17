@@ -1319,7 +1319,7 @@ namespace janus
             // We need to compute the coefficients for the interpolation
             hquot.index_put_({m1_10}, h.index({m1_10}) / h_old.index({m1_10}));
 
-            cq.index_put_({m1_10}, TensorDual::einsum("j,mi->mj", C , hquot.index({m1_10})));
+            cq.index_put_({m1_10}, C.unsqueeze(0)*hquot.index({m1_10}));
 
             // The logic from here on is the same for all stages
             for (int q = 1; q <= stage; q++)
@@ -1729,6 +1729,8 @@ namespace janus
                                     hhfac.index({m1_12_1_3}));
               }
               //Solution
+              std::cerr << "z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2)";
+              janus::print_dual(z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2));
               y.index_put_({m1_12_1}, y.index({m1_12_1}) + z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2));
               //% Collocation polynomial
               cont.index_put_({m1_12_1, Slice(), Slice(stage - 1, stage)},
