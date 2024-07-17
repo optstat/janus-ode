@@ -1729,8 +1729,7 @@ namespace janus
                                     hhfac.index({m1_12_1_3}));
               }
               //Solution
-              std::cerr << "z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2)";
-              janus::print_dual(z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2));
+              //janus::print_dual(z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2));
               y.index_put_({m1_12_1}, y.index({m1_12_1}) + z.index({m1_12_1, Slice(), Slice(stage - 1, stage)}).squeeze(2));
               //% Collocation polynomial
               cont.index_put_({m1_12_1, Slice(), Slice(stage - 1, stage)},
