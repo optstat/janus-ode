@@ -31,6 +31,7 @@ set(SOURCE_FILE1 radaute_hamiltonian_example.cpp)
 set(SOURCE_FILE2 radaute_example.cpp)
 set(SOURCE_FILE3 radauted_example.cpp)
 set(SOURCE_FILE4 safe_gradients_example.cpp)
+set(SOURCE_FILE5 radauted_vdp_norm_example.cpp)
 
 add_executable(vdphamexample ${SOURCE_FILE1})
 # Link libraries
@@ -53,22 +54,32 @@ add_executable(safegradexample ${SOURCE_FILE4})
 target_link_libraries(safegradexample "${TORCH_LIBRARIES}")
 target_link_libraries(safegradexample Python3::Python Python3::NumPy)
 
+add_executable(vdpnormexample ${SOURCE_FILE5})
+# Link libraries for the second executable
+target_link_libraries(vdpnormexample "${TORCH_LIBRARIES}")
+target_link_libraries(vdpnormexample Python3::Python Python3::NumPy)
+
+
 # Ensure the executable is built when running 'make vdphamexample'
-add_custom_target(run_vdphamexample
+add_custom_target(create_vdphamexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdphamexample
 )
 
 # Ensure the executable is built when running 'make vdpexample'
-add_custom_target(run_vdpexample
+add_custom_target(create_vdpexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpexample
 )
 
 # Ensure the executable is built when running 'make vdpdexample'
-add_custom_target(run_vdpdexample
+add_custom_target(create_vdpdexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpdexample
 )
 
 # Ensure the executable is built when running 'make safegradexample'
-add_custom_target(run_safegradexample
+add_custom_target(create_safegradexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target safegradexample
+)
+
+add_custom_target(create_vdpnormexample
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpnormexample
 )

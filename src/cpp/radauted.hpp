@@ -75,7 +75,7 @@ namespace janus
     torch::Tensor NbrStg = torch::tensor(3, torch::kInt64);
     torch::Tensor MinNbrStg = torch::tensor(3, torch::kInt64);
     torch::Tensor MaxNbrStg = torch::tensor(7, torch::kInt64);
-    int MaxNbrStep = 1e4;
+    int MaxNbrStep = 1e6;
     int ParamsOffset = 0;
     torch::Tensor Safe = torch::tensor(0.9, torch::kFloat64);
 
@@ -1019,7 +1019,7 @@ namespace janus
       dyn.NbrStg.resize(M);
     } // end constructor
 
-    void solve()
+    int solve()
     {
       /**
        * Initialize the data structures
@@ -1441,7 +1441,7 @@ namespace janus
                 if (torch::any(torch::isnan(f.r)).item<bool>())
                 {
                   std::cerr << "Some components of the ODE are NAN" << std::endl;
-                  exit(1);
+                  return 1;
                 }
               } // end for q
               auto m1_11_2_2nnz = m1_11_2_2.nonzero();
@@ -1490,7 +1490,7 @@ namespace janus
               if (torch::any(torch::isinf(thq.r)).item<bool>())
               {
                 std::cerr << "thq has infinity" << std::endl;
-                exit(1);
+                return 2;
               }
 
               auto m1_11_2_2_1_1 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Newt == 2) & ~m1_11_2_continue & ~m1_continue;
@@ -1861,7 +1861,7 @@ namespace janus
                 if (torch::any(torch::isnan(f0.r)).item<bool>())
                 {
                   std::cerr << "Some components of the ODE are NAN" << std::endl;
-                  exit(1);
+                  return 1;
                 }
                 stats.FcnNbr.index_put_({m1_12_1_5}, stats.FcnNbr.index({m1_12_1_5}) + 1);
                 // hnew            = PosNeg * min(abs(hnew),abs(hmaxn));
@@ -1997,10 +1997,11 @@ namespace janus
         if (m2.eq(true_tensor).any().item<bool>())
         {
           std::cerr << "More than MaxNbrStep = " << MaxNbrStep << " steps are needed" << std::endl;
-          exit(1);
+          return 3;
         }
       } // end of if OutputFcn
       std::cerr << "Final while count output=" << count << std::endl;
+      return 0;
     } // end of solve
 
     void set_active_stage(int stage)

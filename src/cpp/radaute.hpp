@@ -952,7 +952,7 @@ namespace janus
 
     } // end constructor
 
-    void solve()
+    int solve()
     {
       /**
        * Initialize the data structures
@@ -1282,7 +1282,7 @@ namespace janus
               if (torch::any(torch::isnan(f)).item<bool>())
               {
                 std::cerr << "Some components of the ODE are NAN" << std::endl;
-                exit(1);
+                return 1;
               }
             } // end for q
 
@@ -1319,7 +1319,7 @@ namespace janus
             if (torch::any(torch::isinf(thq)).item<bool>())
             {
               std::cerr << "thq has infinity" << std::endl;
-              exit(1);
+              return 2;
             }
             auto m1_11_2_2_1_1 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Newt == 2) & ~m1_11_2_continue & ~m1_continue;
             Theta.index_put_({m1_11_2_2_1_1}, thq.index({m1_11_2_2_1_1}));
@@ -1626,7 +1626,7 @@ namespace janus
               if (torch::any(torch::isnan(f0)).item<bool>())
               {
                 std::cerr << "Some components of the ODE are NAN" << std::endl;
-                exit(1);
+                return 1;
               }
               StatsTe::FcnNbr.index_put_({m1_12_1_5}, StatsTe::FcnNbr.index({m1_12_1_5}) + 1);
               // hnew            = PosNeg * min(abs(hnew),abs(hmaxn));
@@ -1716,6 +1716,7 @@ namespace janus
         }
       } // end of if OutputFcn
       std::cerr << "Final while count output=" << count << std::endl;
+      return 0;
     } // end of solve
 
     void set_active_stage(int stage)
