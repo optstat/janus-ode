@@ -875,12 +875,15 @@ end */
       hhfac = h;
       if (NbrInd2 > 0)
       {
-        Scal.index_put_({NbrInd1, NbrInd1 + NbrInd2}, Scal.index({NbrInd1, NbrInd1 + NbrInd2}) / hhfac);
+        //Scal.index_put_({NbrInd1, NbrInd1 + NbrInd2}, Scal.index({NbrInd1, NbrInd1 + NbrInd2}) / hhfac);
+        safe_update(Scal, Slice(NbrInd1, NbrInd1 + NbrInd2), Scal.index({NbrInd1, NbrInd1 + NbrInd2}) / hhfac);
       }
       if (NbrInd3 > 0)
       {
-        Scal.index_put_({NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3},
-                        Scal.index({NbrInd1 + NbrInd2 + 1, NbrInd1 + NbrInd2 + NbrInd3}) / torch::pow(hhfac, 2.0));
+        //Scal.index_put_({NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3},
+        //                Scal.index({NbrInd1 + NbrInd2 + 1, NbrInd1 + NbrInd2 + NbrInd3}) / torch::pow(hhfac, 2.0));
+        safe_update(Scal, Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3),
+                    Scal.index({NbrInd1 + NbrInd2 + 1, NbrInd1 + NbrInd2 + NbrInd3}) / torch::pow(hhfac, 2.0));
       }
       std::cerr << "Calling OdeFcn with t=" << t << " and y=" << y << std::endl;
       f0 = OdeFcn(t, y, params);
@@ -1034,18 +1037,21 @@ end */
             if (NbrInd2 > 0)
             {
               //m1351
-              Scal.index_put_({Slice(NbrInd1, NbrInd1 + NbrInd2)},
-                              Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) /
-                                  hhfac);
+              //Scal.index_put_({Slice(NbrInd1, NbrInd1 + NbrInd2)},
+              //                Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) /
+              //                    hhfac);
+              safe_update(Scal, Slice(NbrInd1, NbrInd1 + NbrInd2), Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) / hhfac);
             }
             if (NbrInd3 > 0)
             {
               //m1352
-              Scal.index_put_(
+              /*Scal.index_put_(
                   {Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)},
                   Scal.index(
                       {Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)}) /
-                      pow(hhfac, 2));
+                      pow(hhfac, 2));*/
+              safe_update(Scal, Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3),
+                          Scal.index({Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)}) / torch::pow(hhfac, 2));
             }
             NeedNewQR = true;
             SqrtStgNy = torch::sqrt(torch::tensor({NbrStg * Ny}, torch::kFloat64).to(device));
@@ -1189,17 +1195,20 @@ end */
         if (NbrInd2 > 0)
         {
           //m1261
-          Scal.index_put_({Slice(NbrInd1, NbrInd1 + NbrInd2)},
-                          Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) / hhfac);
+          //Scal.index_put_({Slice(NbrInd1, NbrInd1 + NbrInd2)},
+          //                Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) / hhfac);
+          safe_update(Scal, Slice(NbrInd1, NbrInd1 + NbrInd2), Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) / hhfac);
         }
         if (NbrInd3 > 0)
         {
           //m1262
-          Scal.index_put_(
+          /*Scal.index_put_(
               {Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)},
               Scal.index(
                   {Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)}) /
-                  torch::pow(hhfac, 2));
+                  torch::pow(hhfac, 2));*/
+          safe_update(Scal, Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3),
+                      Scal.index({Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)}) / torch::pow(hhfac, 2));
         }
         //% Initialisation of z w cont f
         if (First || Start_Newt || ChangeFlag)
@@ -1224,13 +1233,15 @@ end */
           for (int q = 1; q <= NbrStg; q++)
           {
             // z(:,q) = (cq(q)-C(1)+1)* cont(:,NbrStg);
-            z.index_put_({Slice(), q - 1}, (cq.index({q - 1}) - C.index({0}) + 1) * cont.index({Slice(), NbrStg - 1}));
-
+            //z.index_put_({Slice(), q - 1}, (cq.index({q - 1}) - C.index({0}) + 1) * cont.index({Slice(), NbrStg - 1}));
+            safe_update(z, {Slice(), q - 1}, (cq.index({q - 1}) - C.index({0}) + 1) * cont.index({Slice(), NbrStg - 1}));
             for (int q1 = 2; q1 <= NbrStg; q1++)
             { 
               //m1281
               // z(:,q) = (z(:,q) + cont(:,NbrStg+1-q1))*(cq(q)-C(q1)+1);
-              z.index_put_({Slice(), q - 1}, (z.index({Slice(), q - 1}) + cont.index({Slice(), NbrStg - q1})) *
+              //z.index_put_({Slice(), q - 1}, (z.index({Slice(), q - 1}) + cont.index({Slice(), NbrStg - q1})) *
+              //                                   (cq.index({q - 1}) - C.index({q1 - 1}) + 1));
+              safe_update(z, {Slice(), q - 1}, (z.index({Slice(), q - 1}) + cont.index({Slice(), NbrStg - q1})) *
                                                  (cq.index({q - 1}) - C.index({q1 - 1}) + 1));
             }
           }
@@ -1238,12 +1249,14 @@ end */
           print_matrix(z);
           for (int N = 1; N <= Ny; N++) // %   w <-> FF   cont c <-> AK   cq(1) <-> C1Q
           {
-            w.index_put_({N-1, Slice()}, TI.index({0, Slice()}) * z.index({N-1, 0}));
+            //w.index_put_({N-1, Slice()}, TI.index({0, Slice()}) * z.index({N-1, 0}));
+            safe_update(w, {N - 1, Slice()}, TI.index({0, Slice()}) * z.index({N - 1, 0}));
             for (int q = 2; q <= NbrStg; q++)
             {
               //m1282
               // w(n,:) = w(n,:) + TI(q,:)*z(n,q);
-              w.index_put_({N - 1, Slice()}, w.index({N - 1, Slice()}) + TI.index({q - 1, Slice()}) * z.index({N - 1, q - 1}));
+              //w.index_put_({N - 1, Slice()}, w.index({N - 1, Slice()}) + TI.index({q - 1, Slice()}) * z.index({N - 1, q - 1}));
+              safe_update(w, {N - 1, Slice()}, w.index({N - 1, Slice()}) + TI.index({q - 1, Slice()}) * z.index({N - 1, q - 1}));
             }
           }
           std::cerr << "w=";
@@ -1296,7 +1309,8 @@ end */
             torch::Tensor tatq = t + C[q - 1] * h;
             torch::Tensor yatq = y + z.index({Slice(), q - 1});
             torch::Tensor fatq = OdeFcn(tatq, yatq, params);
-            f.index_put_({Slice(), q - 1}, fatq); //% OdeFcn needs parameters
+            //f.index_put_({Slice(), q - 1}, fatq); //% OdeFcn needs parameters
+            safe_update(f, {Slice(), q - 1}, fatq);
             if (torch::any(torch::isnan(f)).item<bool>())
             {
               //m13211
@@ -1308,12 +1322,15 @@ end */
           StatsT::FcnNbr = StatsT::FcnNbr + NbrStg;
           for (int n = 1; n <= Ny; n++)
           {
-            z.index_put_({n - 1}, TI.index({0}) * f.index({n - 1, 0}));
+            //z.index_put_({n - 1}, TI.index({0}) * f.index({n - 1, 0}));
+            safe_update(z, {n - 1}, TI.index({0}) * f.index({n - 1, 0}));
             for (int q = 2; q <= NbrStg; q++)
             {
               //m1322
-              z.index_put_({n - 1, Slice()},
-                           z.index({n - 1, Slice()}) + TI.index({q - 1, Slice()}) * f.index({n - 1, q - 1}));
+              //z.index_put_({n - 1, Slice()},
+              //             z.index({n - 1, Slice()}) + TI.index({q - 1, Slice()}) * f.index({n - 1, q - 1}));
+              safe_update(z, {n - 1, Slice()},
+                          z.index({n - 1, Slice()}) + TI.index({q - 1, Slice()}) * f.index({n - 1, q - 1}));
             }
           }
           //% ------- SOLVE THE LINEAR SYSTEMS    % Line 1037
@@ -1531,30 +1548,38 @@ end */
           if (NbrInd2 > 0)
           {
             //m1512
-            Scal.index_put_({Slice(NbrInd1, NbrInd1 + NbrInd2)},
+            /*Scal.index_put_({Slice(NbrInd1, NbrInd1 + NbrInd2)},
                             Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) /
-                                hhfac);
+                                hhfac);*/
+            safe_update(Scal, Slice(NbrInd1, NbrInd1 + NbrInd2), 
+                        Scal.index({Slice(NbrInd1, NbrInd1 + NbrInd2)}) / hhfac);
           }
           if (NbrInd3 > 0)
           {
             //m1513
-            Scal.index_put_(
+            /*Scal.index_put_(
                 {Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)},
                 Scal.index(
                     {Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)}) /
-                    torch::pow(hhfac, 2));
+                    torch::pow(hhfac, 2));*/
+            safe_update(Scal, Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3),
+                        Scal.index({Slice(NbrInd1 + NbrInd2, NbrInd1 + NbrInd2 + NbrInd3)}) / torch::pow(hhfac, 2));
           }
           //% Solution
           y = y + z.index({Slice(), NbrStg - 1});
           std::cerr << "y=";
           print_vector(y);
           //% Collocation polynomial
-          cont.index_put_({Slice(), NbrStg - 1}, z.index({Slice(), 0}) / C[0]);
+          //cont.index_put_({Slice(), NbrStg - 1}, z.index({Slice(), 0}) / C[0]);
+          safe_update(cont, {Slice(), NbrStg - 1}, z.index({Slice(), 0}) / C[0]);
           for (int q = 1; q <= NbrStg - 1; q++)
           {
             //m1514
             Fact = 1.0 / (C[NbrStg - q - 1] - C[NbrStg - q]);
-            cont.index_put_({Slice(), q - 1}, (z.index({Slice(), NbrStg - q-1}) -
+            /*cont.index_put_({Slice(), q - 1}, (z.index({Slice(), NbrStg - q-1}) -
+                                      z.index({Slice(), NbrStg - q})) *
+                                         Fact);*/
+            safe_update(cont, {Slice(), q - 1}, (z.index({Slice(), NbrStg - q-1}) -
                                       z.index({Slice(), NbrStg - q})) *
                                          Fact);
           }
@@ -1577,9 +1602,11 @@ end */
                 //m151512
                 Fact = 1.0 / (C[NbrStg - k - 1] - C[NbrStg - k + jj - 1]);
               }
-              cont.index_put_(
+              /*cont.index_put_(
                   {Slice(), k - 1},
-                  (cont.index({Slice(), k - 1}) - cont.index({Slice(), k - 2})) * Fact);
+                  (cont.index({Slice(), k - 1}) - cont.index({Slice(), k - 2})) * Fact);*/
+              safe_update(cont, {Slice(), k - 1},
+                          (cont.index({Slice(), k - 1}) - cont.index({Slice(), k - 2})) * Fact);
             }
           }
 
@@ -1625,8 +1652,10 @@ end */
               tout = torch::cat({tout, torch::zeros({nBuffer, 1}, torch::kDouble)});
               yout = torch::cat({yout, torch::zeros({nBuffer, Ny}, torch::kDouble)});
             }
-            tout.index_put_({nout-1}, t.clone());
-            yout.index_put_({nout-1}, y.clone());
+            //tout.index_put_({nout-1}, t.clone());
+            safe_update(tout, {nout-1}, t.clone());
+            //yout.index_put_({nout-1}, y.clone());
+            safe_update(yout, {nout-1}, y.clone()); 
             std::cerr << "nout=" << nout << std::endl;
             std::cerr << "t=";
             print_vector(t);
@@ -1643,10 +1672,14 @@ end */
             ii = torch::arange(oldnout, nout-1, torch::kInt64).to(device);
             tinterp = t + h * S - h;
             yinterp = ntrprad(tinterp, t, y, h, C, cont);
-            tout.index_put_({ii - 1}, tinterp);
-            yout.index_put_({ii - 1}, yinterp.index({Slice(0, Ny)}));
-            tout.index_put_({nout-1}, t);
-            yout.index_put_({nout-1}, y);
+            //tout.index_put_({ii - 1}, tinterp);
+            safe_update(tout, ii - 1, tinterp);
+            //yout.index_put_({ii - 1}, yinterp.index({Slice(0, Ny)}));
+            safe_update(yout, ii - 1, yinterp.index({Slice(0, Ny)}));
+            //tout.index_put_({nout-1}, t);
+            safe_update(tout, {nout-1}, t);
+            //yout.index_put_({nout-1}, y);
+            safe_update(yout, {nout-1}, y);
             break;
           case 3: // Output only at tspan points
             //m15173
@@ -1662,23 +1695,29 @@ end */
               else if ((t == tspan[next - 1]).all().item<bool>())
               {
                 nout = nout + 1;
-                tout.index_put_({nout - 1}, t);
-                yout.index_put_({nout - 1}, y.index({OutputSel}));
+                //tout.index_put_({nout - 1}, t);
+                safe_update(tout, {nout - 1}, t);
+                //yout.index_put_({nout - 1}, y.index({OutputSel}));
+                safe_update(yout, {nout - 1}, y.index({OutputSel}));
                 break;
               }
               nout = nout + 1; // tout and yout are already allocated
-              tout.index_put_({nout - 1}, tspan[next - 1]);
+              //tout.index_put_({nout - 1}, tspan[next - 1]);
+              safe_update(tout, {nout - 1}, tspan[next - 1]);
               //    torch::Tensor ntrprad(torch::Tensor &tinterp, torch::Tensor &t,
               // torch::Tensor &y, torch::Tensor &h, torch::Tensor &C,
               // torch::Tensor &cont)
               yinterp = ntrprad(tspan[next - 1], t, y, h, C, cont);
             }
             nout = nout + 1; //% tout and yout are already allocated
-            tout.index_put_({nout - 1}, tspan.index({next - 1}));
+            //tout.index_put_({nout - 1}, tspan.index({next - 1}));
+            safe_update(tout, {nout - 1}, tspan.index({next - 1}));
             yinterp = ntrprad(tspan[next - 1], t, y, h, C, cont);
             // yout(nout,:) = yinterp(OutputSel,:)';
-            yout.index_put_({nout - 1},
-                            yinterp.index({OutputSel - 1}));
+            /*yout.index_put_({nout - 1},
+                            yinterp.index({OutputSel - 1}));*/
+            safe_update(yout, {nout - 1},
+                        yinterp.index({OutputSel - 1}));  
             next = next + 1;
             break;
           } //% end of switch
@@ -1824,8 +1863,10 @@ end */
       }   //% end of while loop
       if ( OutputFcn) {
         //m17
-        tout.index_put_({nout}, tout);
-        yout.index_put_({nout}, y);
+        //tout.index_put_({nout}, tout);
+        safe_update(tout, {nout}, t);
+        //yout.index_put_({nout}, y);
+        safe_update(yout, {nout}, y);
         tout = tout.index({Slice(0, nout)});
         yout = yout.index({Slice(0, nout)});
         if (EventsExist)
@@ -1879,7 +1920,8 @@ end */
       }
       for (int k = 1; k <= m; k++)
       {
-        yinterp.index_put_({Slice(), k-1}, yi.index({Slice(), k}) + y);
+        //yinterp.index_put_({Slice(), k-1}, yi.index({Slice(), k}) + y);
+        safe_update(yinterp, {Slice(), k-1}, yi.index({Slice(), k}) + y);
       }
       return yinterp;
     } // end of ntrprad
@@ -2076,7 +2118,8 @@ end */
         auto valpMw = valp.index({0}) * Mw.index({0});
         std::cerr << "valpMw=" << valpMw << std::endl;
         std::cerr << "rhs before put at z 0 index=" << rhs0 << std::endl;
-        z.index_put_({Slice(), 0}, rhs0); // real
+        //z.index_put_({Slice(), 0}, rhs0); // real
+        safe_update(z, {Slice(), 0}, rhs0);
         std::cerr << "z in RealYN after first index_put=" << z << std::endl;
         auto inpcheck = z.index({Slice(), 0}).clone();
         std::cerr << "z in RealYN before calling solve=" << z << std::endl;
@@ -2093,7 +2136,8 @@ end */
         std::cerr << "sol=" << sol << std::endl;
 
         // z(:,1) = U(:,:,1)\(L(:,:,1)\(P(:,:,1)*z(:,1)));
-        z.index_put_({Slice(), 0}, sol);  // First column solution
+        //z.index_put_({Slice(), 0}, sol);  // First column solution
+        safe_update(z, {Slice(), 0}, sol);
         std::cerr << "z in RealYN in Solvrad after application of first solvev=" << z << std::endl;
         std::cerr << "valp=" << valp << std::endl;
         std::cerr << "Mw=" << Mw << std::endl;
@@ -2119,9 +2163,11 @@ end */
             std::cerr << "z2 real after solvev=" << at::real(sol) << std::endl;
             std::cerr << "z2 imag after solvev=" << at::imag(sol) << std::endl;
             // TODO implement real and imag for dual tensors
-            z.index_put_({Slice(), q2 - 1}, at::real(sol));
+            //z.index_put_({Slice(), q2 - 1}, at::real(sol));
+            safe_update(z, {Slice(), q2 - 1}, at::real(sol));
             std::cerr << "z2 real part=" << at::real(sol) << std::endl;
-            z.index_put_({Slice(), q3 - 1}, at::imag(sol));
+            //z.index_put_({Slice(), q3 - 1}, at::imag(sol));
+            safe_update(z, {Slice(), q3 - 1}, at::imag(sol));
             std::cerr << "z2 imag part=" << at::imag(sol) << std::endl;
           }
         }
@@ -2131,14 +2177,16 @@ end */
       {
         for (int q = 1; q <= NbrStg; q++)
         {
-          z.index_put_({Slice(), q - 1}, z.index({Slice(), q - 1}) - valp.index({Slice(), q - 1}) * Mw.index({Slice(), q - 1}));
+          //z.index_put_({Slice(), q - 1}, z.index({Slice(), q - 1}) - valp.index({Slice(), q - 1}) * Mw.index({Slice(), q - 1}));
+          safe_update(z, {Slice(), q - 1}, z.index({Slice(), q - 1}) - valp.index({Slice(), q - 1}) * Mw.index({Slice(), q - 1}));
           auto qrin = z.index({Slice(), q - 1}).unsqueeze(1);
           /*auto pivots = Pivots[q-1];
           auto LU = LUs[q-1];
           auto sol = torch::lu_solve(qrin, LU, pivots).squeeze(1);*/
           auto sol = QRs[q-1].solvev(qrin);
           //auto sol = qrs[q - 1].solvev(qrin);
-          z.index_put_({Slice(), q - 1}, sol);
+          //z.index_put_({Slice(), q - 1}, sol);
+          safe_update(z, {Slice(), q - 1}, sol);
         }
       }
       std::cerr << "z in output Solvrad=" << z << std::endl;
@@ -2227,10 +2275,14 @@ end */
       torch::Tensor ii = torch::arange(0, Refine - 2);
       torch::Tensor tinterp = t + h * S - h;
       torch::Tensor yinterp = ntrprad(tinterp, t, y, h, C, cont);
-      tout.index_put_({ii}, tinterp);
-      yout.index_put_({ii, Slice()}, yinterp.index({OutputSel}));
-      tout.index_put_({Refine - 1}, t);
-      yout.index_put_({Refine - 1, Slice()}, y.index({OutputSel}));
+      //tout.index_put_({ii}, tinterp);
+      safe_update(tout, {ii}, tinterp);
+      //yout.index_put_({ii, Slice()}, yinterp.index({OutputSel}));
+      safe_update(yout, {ii, Slice()}, yinterp.index({OutputSel}));
+      //tout.index_put_({Refine - 1}, t);
+      safe_update(tout, {Refine - 1}, t);
+      //yout.index_put_({Refine - 1, Slice()}, y.index({OutputSel}));
+      safe_update(yout, {Refine - 1, Slice()}, y.index({OutputSel}));
       return std::make_tuple(tout, yout);
     }
     // TODO:Fix this method
@@ -2245,10 +2297,14 @@ end */
       torch::Tensor ii = torch::arange(0, Refine - 1);
       torch::Tensor tinterp = t + h * S - h;
       torch::Tensor yinterp = ntrprad(tinterp, t, y, h, C, cont);
-      tout.index_put_({ii}, tinterp);
-      yout.index_put_({ii, Slice()}, yinterp.index({OutputSel}));
-      tout.index_put_({Refine - 1}, t);
-      yout.index_put_({Refine - 1, Slice()}, y.index({OutputSel}));
+      //tout.index_put_({ii}, tinterp);
+      safe_update(tout, {ii}, tinterp);
+      //yout.index_put_({ii, Slice()}, yinterp.index({OutputSel}));
+      safe_update(yout, {ii, Slice()}, yinterp.index({OutputSel}));
+      //tout.index_put_({Refine - 1}, t);
+      safe_update(tout, {Refine - 1}, t);
+      //yout.index_put_({Refine - 1, Slice()}, y.index({OutputSel}));
+      safe_update(yout, {Refine - 1, Slice()}, y.index({OutputSel}));
       return std::make_tuple(tout, yout);
     }
 
@@ -2473,14 +2529,19 @@ Dd3   = Dd(:);*/
                 .t();
         torch::Tensor ST9 = torch::pow(torch::tensor(9.0, torch::kF64), 1.0 / 3.0);
         torch::Tensor ValP3 = torch::zeros({3}, torch::kF64).to(y.device());
-        ValP3.index_put_({0}, (6.0 + ST9 * (ST9 - 1)) / 30.0);
-        ValP3.index_put_({1}, (12.0 - ST9 * (ST9 - 1)) / 60.0);
-        ValP3.index_put_({2}, ST9 * (ST9 + 1) * std::sqrt(3.0) / 60.0);
+        //ValP3.index_put_({0}, (6.0 + ST9 * (ST9 - 1)) / 30.0);
+        safe_update(ValP3, {0}, (6.0 + ST9 * (ST9 - 1)) / 30.0);
+        //ValP3.index_put_({1}, (12.0 - ST9 * (ST9 - 1)) / 60.0);
+        safe_update(ValP3, {1}, (12.0 - ST9 * (ST9 - 1)) / 60.0);
+        //ValP3.index_put_({2}, ST9 * (ST9 + 1) * std::sqrt(3.0) / 60.0);
+        safe_update(ValP3, {2}, ST9 * (ST9 + 1) * std::sqrt(3.0) / 60.0);
         torch::Tensor Cno = ValP3[1] * ValP3[1] + ValP3[2] * ValP3[2];
-        ValP3.index_put_({0}, 1.0 / ValP3[0]);
-        ValP3.index_put_({1}, ValP3[1] / Cno);
-        ValP3.index_put_({2}, ValP3[2] / Cno);
-
+        //ValP3.index_put_({0}, 1.0 / ValP3[0]);
+        safe_update(ValP3, {0}, 1.0 / ValP3[0]);
+        //ValP3.index_put_({1}, ValP3[1] / Cno);
+        safe_update(ValP3, {1}, ValP3[1] / Cno);
+        //ValP3.index_put_({2}, ValP3[2] / Cno);
+        safe_update(ValP3, {2}, ValP3[2] / Cno);
         return std::make_tuple(T_3, TI_3, C3, ValP3, Dd3);
       }
       else
@@ -2733,30 +2794,47 @@ return
         ValP5 = D5.diag();
       }
       torch::Tensor T_5 = torch::empty({5, 5}, torch::kF64).to(y.device());
-      T_5.index_put_({0},
-                    T5.index({Slice(), 0}));
-      T_5.index_put_({1},
-                    T5.index({Slice(), 1}));
-      T_5.index_put_({2},
-                    T5.index({Slice(), 2}));
-      T_5.index_put_({3},
-                    T5.index({Slice(), 3}));
-      T_5.index_put_({4},
-                    T5.index({Slice(), 4}));
-
+      //T_5.index_put_({0},
+      //              T5.index({Slice(), 0}));
+      safe_update(T_5, {0},
+                  T5.index({Slice(), 0}));
+      //T_5.index_put_({1},
+      //              T5.index({Slice(), 1}));
+      safe_update(T_5, {1},
+                  T5.index({Slice(), 1}));
+      //T_5.index_put_({2},
+      //              T5.index({Slice(), 2}));
+      safe_update(T_5, {2},
+                  T5.index({Slice(), 2}));
+      //T_5.index_put_({3},
+      //              T5.index({Slice(), 3}));
+      safe_update(T_5, {3},
+                  T5.index({Slice(), 3}));
+      //T_5.index_put_({4},
+      //              T5.index({Slice(), 4}));
+      safe_update(T_5, {4},
+                  T5.index({Slice(), 4}));
       torch::Tensor TI_5 = torch::empty({5, 5}, torch::kF64).to(y.device());
-      TI_5.index_put_({0},
-                     TI5.index({Slice(), 0}));
-      TI_5.index_put_({1},
-                      TI5.index({Slice(), 1})); 
-      TI_5.index_put_({2},
-                      TI5.index({Slice(), 2}));   
-      TI_5.index_put_({3},
-          
-                      TI5.index({Slice(), 3}));   
-      TI_5.index_put_({4},
-                      TI5.index({Slice(), 4}));   
-          
+      //TI_5.index_put_({0},
+      //               TI5.index({Slice(), 0}));
+      safe_update(TI_5, {0},
+                  TI5.index({Slice(), 0}));
+      //TI_5.index_put_({1},
+      //                TI5.index({Slice(), 1})); 
+      safe_update(TI_5, {1},
+                  TI5.index({Slice(), 1}));
+      //TI_5.index_put_({2},
+      //                TI5.index({Slice(), 2}));   
+      safe_update(TI_5, {2},
+                  TI5.index({Slice(), 2}));
+      //TI_5.index_put_({3},
+      //                TI5.index({Slice(), 3}));   
+      safe_update(TI_5, {3},
+                  TI5.index({Slice(), 3}));
+      //TI_5.index_put_({4},
+      //                TI5.index({Slice(), 4}));   
+      safe_update(TI_5, {4},
+                  TI5.index({Slice(), 4}));    
       return std::make_tuple(T_5, TI_5, C5, ValP5, Dd5);
     }
 
@@ -2957,36 +3035,63 @@ return
         ValP7[6] = D7[6][6];
       }
       torch::Tensor T_7 = torch::empty({7, 7}, torch::kF64).to(y.device());
-      T_7.index_put_({0},
-                    T7.index({Slice(), 0}));
-      T_7.index_put_({1},
-                    T7.index({Slice(), 1}));
-      T_7.index_put_({2},
-                    T7.index({Slice(), 2}));
-      T_7.index_put_({3},
-                    T7.index({Slice(), 3}));
-      T_7.index_put_({4},
-                    T7.index({Slice(), 4}));
-      T_7.index_put_({5},
-                    T7.index({Slice(), 5}));
-      T_7.index_put_({6},
-                    T7.index({Slice(), 6}));
+      //T_7.index_put_({0},
+      //              T7.index({Slice(), 0}));
+      safe_update(T_7, {0},
+                  T7.index({Slice(), 0}));
+      //T_7.index_put_({1},
+      //              T7.index({Slice(), 1}));
+      safe_update(T_7, {1},
+                  T7.index({Slice(), 1}));
+      //T_7.index_put_({2},
+      //              T7.index({Slice(), 2}));
+      safe_update(T_7, {2},
+                  T7.index({Slice(), 2}));
+      //T_7.index_put_({3},
+      //              T7.index({Slice(), 3}));
+      safe_update(T_7, {3},
+                  T7.index({Slice(), 3}));
+      //T_7.index_put_({4},
+      //              T7.index({Slice(), 4}));
+      safe_update(T_7, {4},
+                  T7.index({Slice(), 4}));
+      //T_7.index_put_({5},
+      //              T7.index({Slice(), 5}));
+      safe_update(T_7, {5},
+                  T7.index({Slice(), 5}));
+      //T_7.index_put_({6},
+      //              T7.index({Slice(), 6}));
+      safe_update(T_7, {6},
+                  T7.index({Slice(), 6}));
       torch::Tensor TI_7 = torch::empty({7, 7}, torch::kF64).to(y.device());
-      TI_7.index_put_({0},
-                     TI7.index({Slice(), 0}));
-      TI_7.index_put_({1},
-                     TI7.index({Slice(), 1}));
-      TI_7.index_put_({2},
-                     TI7.index({Slice(), 2}));
-      TI_7.index_put_({3},
-                     TI7.index({Slice(), 3}));
-      TI_7.index_put_({4},
-                     TI7.index({Slice(), 4}));
-      TI_7.index_put_({5},
-                     TI7.index({Slice(), 5}));
-      TI_7.index_put_({6},
-                     TI7.index({Slice(), 6}));
-
+      //TI_7.index_put_({0},
+      //               TI7.index({Slice(), 0}));
+      safe_update(TI_7, {0},
+                  TI7.index({Slice(), 0}));
+      //TI_7.index_put_({1},
+      //               TI7.index({Slice(), 1}));
+      safe_update(TI_7, {1},
+                  TI7.index({Slice(), 1}));
+      //TI_7.index_put_({2},
+      //               TI7.index({Slice(), 2}));
+      safe_update(TI_7, {2},
+                  TI7.index({Slice(), 2}));
+      //TI_7.index_put_({3},
+      //               TI7.index({Slice(), 3}));
+      safe_update(TI_7, {3},
+                  TI7.index({Slice(), 3}));
+      //TI_7.index_put_({4},
+      //               TI7.index({Slice(), 4}));
+      safe_update(TI_7, {4},
+                  TI7.index({Slice(), 4}));
+      //TI_7.index_put_({5},
+      //               TI7.index({Slice(), 5}));
+      safe_update(TI_7, {5},
+                  TI7.index({Slice(), 5}));
+      //TI_7.index_put_({6},
+      //               TI7.index({Slice(), 6}));
+      safe_update(TI_7, {6},
+                  TI7.index({Slice(), 6}));
       return std::tuple(T_7, TI_7, C7, ValP7, Dd7);
 
     } // end of Coertv7

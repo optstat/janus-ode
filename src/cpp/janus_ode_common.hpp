@@ -3,6 +3,70 @@
 #include <torch/torch.h>
 #include <janus/janus_util.hpp>
 #include <functional>
+// Utility function to update tensor without in-place operations
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    const torch::Tensor& indices,
+    const torch::Tensor& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    const torch::Tensor& indices,
+    const double& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
+
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    std::vector<at::indexing::TensorIndex> indices,
+    const torch::Tensor& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    at::indexing::TensorIndex indices,
+    const torch::Tensor& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    at::indexing::TensorIndex indices,
+    const double& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
+
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    std::vector<at::indexing::TensorIndex> indices,
+    const double& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
 
 
 namespace janus 
@@ -67,19 +131,34 @@ Assume the input tensors are 2D and that the first dimension is a batch dimensio
 torch::Tensor safe_jac(const torch::Tensor& y, const torch::Tensor& x) {
     //Assume y is a scalar and x is 2D
     int M = y.size(0);
-    assert(x.size(0) == M);
     int Nx = x.size(1);
     //Create a zero jacobian as the default
     auto jac = torch::zeros({M, 1, Nx}, y.options());
-
+    
     // Compute the gradient of y with respect to x
     if (y.requires_grad()) {
+        jac = torch::autograd::grad({y}, {x}, {torch::ones_like(y)}, true, true, true)[0];
+    }
+    else {
+        y.set_requires_grad(true);
         jac = torch::autograd::grad({y}, {x}, {torch::ones_like(y)}, true, true, true)[0];
     }
     //This will safely return a zero tensor if y is not dependent on x
     //In this case y does not have the gradient attribute set to true
     return jac;
 }
+
+// Utility function to update tensor without in-place operations
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    const torch::Tensor& indices,
+    const torch::Tensor& value
+) {
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
 
 
 
