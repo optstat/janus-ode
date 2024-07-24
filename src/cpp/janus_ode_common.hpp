@@ -24,6 +24,26 @@ void safe_update(
     tensor_to_update = tensor_copy;
 }
 
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    const torch::Tensor& indices,
+    const bool& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    const torch::Tensor& indices,
+    const int& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
 
 
 void safe_update(
@@ -67,6 +87,27 @@ void safe_update(
     tensor_copy.index_put_({indices}, value);
     tensor_to_update = tensor_copy;
 }
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    std::vector<at::indexing::TensorIndex> indices,
+    const bool& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
+void safe_update(
+    torch::Tensor& tensor_to_update,
+    std::vector<at::indexing::TensorIndex> indices,
+    const int& value) 
+{
+    auto tensor_copy = tensor_to_update.clone();
+    tensor_copy.index_put_({indices}, value);
+    tensor_to_update = tensor_copy;
+}
+
 
 
 namespace janus 
@@ -148,16 +189,6 @@ torch::Tensor safe_jac(const torch::Tensor& y, const torch::Tensor& x) {
     return jac;
 }
 
-// Utility function to update tensor without in-place operations
-void safe_update(
-    torch::Tensor& tensor_to_update,
-    const torch::Tensor& indices,
-    const torch::Tensor& value
-) {
-    auto tensor_copy = tensor_to_update.clone();
-    tensor_copy.index_put_({indices}, value);
-    tensor_to_update = tensor_copy;
-}
 
 
 
