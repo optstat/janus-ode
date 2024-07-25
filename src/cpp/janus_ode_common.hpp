@@ -133,11 +133,9 @@ torch::Tensor pxH(const torch::Tensor &x,
                   std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for x and no gradient tracking for p
-    auto xt = x.clone();
-    xt.detach_();
+    auto xt = x.clone().detach();
     xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
+    auto pt = p.clone().detach();
     pt=pt.set_requires_grad(false);
 
     // Compute the Hamiltonian value
@@ -146,10 +144,10 @@ torch::Tensor pxH(const torch::Tensor &x,
     // Compute the gradient of Hvalue with respect to xt
     //auto grad_H_wrt_x = torch::autograd::grad({Hvalue}, {xt}, {torch::ones_like(Hvalue)})[0];
     auto grad_H_wrt_x = safe_jac(Hvalue, xt);
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
-    grad_H_wrt_x.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
+    grad_H_wrt_x.detach();
 
     return grad_H_wrt_x;
 }
@@ -161,11 +159,9 @@ torch::Tensor ppH(const torch::Tensor &x,
                   std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for p and no gradient tracking for x
-    auto xt = x.clone();
-    xt.detach_();
+    auto xt = x.clone().detach();
     xt=xt.set_requires_grad(false);
-    auto pt = p.clone();
-    pt.detach_();
+    auto pt = p.clone().detach();
     pt=pt.set_requires_grad(true);
 
     // Compute the Hamiltonian value
@@ -173,9 +169,9 @@ torch::Tensor ppH(const torch::Tensor &x,
 
     // Compute the gradient of Hvalue with respect to pt
     auto grad_H_wrt_p = torch::autograd::grad({Hvalue}, {pt}, {torch::ones_like(Hvalue)})[0];
-    pt.detach_();
-    Hvalue.detach_();
-    grad_H_wrt_p.detach_();
+    pt.detach();
+    Hvalue.detach();
+    grad_H_wrt_p.detach();
     return grad_H_wrt_p;
 }
 
@@ -186,11 +182,9 @@ torch::Tensor ppppH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for x and no gradient tracking for p
-    auto xt = x.clone();
-    xt.detach_();
+    auto xt = x.clone().detach();
     xt=xt.set_requires_grad(false);
-    auto pt = p.clone();
-    pt.detach_();
+    auto pt = p.clone().detach();
     pt=pt.set_requires_grad(true);
 
     // Compute the Hamiltonian value
@@ -225,13 +219,13 @@ torch::Tensor ppppH(const torch::Tensor &x,
                                               {torch::ones_like(first_order_grad.index({Slice(), i}))} 
                                               )[0];*/
         auto grad_p_i = safe_jac(first_order_grad.index({Slice(), i}), pt);
-        grad_p_i.detach_();
+        grad_p_i.detach();
        
         // Assign the gradient to the corresponding row of the Hessian matrix
         hessian.index_put_({Slice(), i, Slice()}, grad_p_i);
     }
-    pt.detach_();
-    Hvalue.detach_();
+    pt.detach();
+    Hvalue.detach();
     
 
     // Return the Hessian
@@ -247,11 +241,9 @@ torch::Tensor pxpxH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for x and no gradient tracking for p
-    auto xt = x.clone();
-    xt.detach_();
+    auto xt = x.clone().detach();
     xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
+    auto pt = p.clone().detach();
     pt=pt.set_requires_grad(false);
 
     // Compute the Hamiltonian value
@@ -285,11 +277,11 @@ torch::Tensor pxpxH(const torch::Tensor &x,
         auto grad_x_i = safe_jac(first_order_grad.index({Slice(), i}), xt);
 
         // Assign the gradient to the corresponding column of the Hessian matrix
-        grad_x_i.detach_();
+        grad_x_i.detach();
         hessian.index_put_({Slice(), i}, grad_x_i);
     }
-    xt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    Hvalue.detach();
     // Return the Hessian
     return hessian;
 }
@@ -302,11 +294,9 @@ torch::Tensor pxppH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
+    auto xt = x.clone().detach();
     xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
+    auto pt = p.clone().detach();
     pt=pt.set_requires_grad(true);
 
     // Compute the Hamiltonian value
@@ -344,12 +334,12 @@ torch::Tensor pxppH(const torch::Tensor &x,
         auto grad_H_p_i = safe_jac(grad_H_p.index({Slice(), i}), xt);
         // Assign the gradient to the corresponding slice of the mixed Hessian matrix
         //mixed_hessian.select(1, i).copy_(grad_H_p_i);
-        grad_H_p_i.detach_();
+        grad_H_p_i.detach();
         mixed_hessian.index_put_({Slice(), i}, grad_H_p_i);
     }
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
 
     // Return the mixed Hessian
     return mixed_hessian;
@@ -362,11 +352,9 @@ torch::Tensor pppxH(const torch::Tensor &x,
                     std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
+    auto xt = x.clone().detach();
     xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
+    auto pt = p.clone().detach();
     pt=pt.set_requires_grad(true);
 
     // Compute the Hamiltonian value
@@ -403,12 +391,12 @@ torch::Tensor pppxH(const torch::Tensor &x,
         auto grad_H_x_i = safe_jac(grad_H_x.index({Slice(), i}), pt);
         // Assign the gradient to the corresponding slice of the mixed Hessian matrix
         //mixed_hessian.select(1, i).copy_(grad_H_x_i);
-        grad_H_x_i.detach_();
+        grad_H_x_i.detach();
         mixed_hessian.index_put_({Slice(), i}, grad_H_x_i);
     }
-    pt.detach_();
-    xt.detach_();
-    Hvalue.detach_();
+    pt.detach();
+    xt.detach();
+    Hvalue.detach();
 
     // Return the mixed Hessian
     return mixed_hessian;
@@ -474,16 +462,16 @@ torch::Tensor ppppppH(const torch::Tensor &x,
                                                      true,
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({torch::indexing::Slice(), j}), pt);
-            grad_H_p_ij.detach_();
+            grad_H_p_ij.detach();
 
             // Store the third-order gradient
             third_order_derivative.index_put_({torch::indexing::Slice(), i, j}, grad_H_p_ij);
         }
-        grad_H_p_i.detach_();
+        grad_H_p_i.detach();
     
     }
-    pt.detach_();
-    Hvalue.detach_();
+    pt.detach();
+    Hvalue.detach();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -497,12 +485,8 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
-    xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
-    pt=pt.set_requires_grad(false);
+    auto xt = x.clone().detach().set_requires_grad(true);
+    auto pt = p.clone().detach().set_requires_grad(false);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -546,14 +530,14 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
-            grad_H_p_ij.detach_();
+            grad_H_p_ij.detach();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
-        grad_H_p_i.detach_();
+        grad_H_p_i.detach();
     }
-    xt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    Hvalue.detach();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -566,12 +550,8 @@ torch::Tensor pppppxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
-    xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
-    pt=pt.set_requires_grad(true);
+    auto xt = x.clone().detach().set_requires_grad(true);
+    auto pt = p.clone().detach().set_requires_grad(true);
     if (xt.grad().defined()) {
       xt.grad().zero_();
     }
@@ -629,15 +609,15 @@ torch::Tensor pppppxH(const torch::Tensor &x,
                                                        true, 
                                                        true)[0];*/
             auto grad_H_x_p_ij = safe_jac(grad_H_x_p_i.index({Slice(), j}), pt);
-            grad_H_x_p_ij.detach_();
+            grad_H_x_p_ij.detach();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_x_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_x_p_ij);
         }
-        grad_H_x_p_i.detach_();
+        grad_H_x_p_i.detach();
     }
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
 
 
     // Return the third-order derivative tensor
@@ -651,12 +631,8 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
-    xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
-    pt=pt.set_requires_grad(true);
+    auto xt = x.clone().detach().set_requires_grad(true);
+    auto pt = p.clone().detach().set_requires_grad(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -709,14 +685,14 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_x_ij = safe_jac(grad_H_x_i.index({Slice(), j}), pt);
-            grad_H_x_ij.detach_();
+            grad_H_x_ij.detach();
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_x_ij);
         }
-        grad_H_x_i.detach_();
+        grad_H_x_i.detach();
     }
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -729,12 +705,8 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
-    xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
-    pt=pt.set_requires_grad(true);
+    auto xt = x.clone().detach().set_requires_grad(true);
+    auto pt = p.clone().detach().set_requires_grad(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -787,15 +759,15 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
-            grad_H_p_ij.detach_();
+            grad_H_p_ij.detach();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
-        grad_H_p_i.detach_();
+        grad_H_p_i.detach();
     }
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -809,12 +781,8 @@ torch::Tensor pppxppH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
-    xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
-    pt=pt.set_requires_grad(true);
+    auto xt = x.clone().detach().set_requires_grad(true);
+    auto pt = p.clone().detach().set_requires_grad(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -868,15 +836,15 @@ torch::Tensor pppxppH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), pt);
-            grad_H_p_ij.detach_();
+            grad_H_p_ij.detach();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
-        grad_H_p_i.detach_();
+        grad_H_p_i.detach();
     }
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -890,12 +858,8 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
-    xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
-    pt=pt.set_requires_grad(true);
+    auto xt = x.clone().detach().set_requires_grad(true);
+    auto pt = p.clone().detach().set_requires_grad(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -948,15 +912,15 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
-            grad_H_p_ij.detach_();
+            grad_H_p_ij.detach();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
-        grad_H_p_i.detach_();
+        grad_H_p_i.detach();
     }
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -970,12 +934,8 @@ torch::Tensor pxppppH(const torch::Tensor &x,
                       std::function<torch::Tensor(const torch::Tensor&, const torch::Tensor&, T)> H)
 {
     // Create tensors with gradient tracking for both x and p
-    auto xt = x.clone();
-    xt.detach_();
-    xt=xt.set_requires_grad(true);
-    auto pt = p.clone();
-    pt.detach_();
-    pt.set_requires_grad(true);
+    auto xt = x.clone().detach().set_requires_grad(true);
+    auto pt = p.clone().detach().set_requires_grad(true);
 
     // Compute the Hamiltonian value
     auto Hvalue = H(xt, pt, W);
@@ -1030,15 +990,15 @@ torch::Tensor pxppppH(const torch::Tensor &x,
                                                      true, 
                                                      true)[0];*/
             auto grad_H_p_ij = safe_jac(grad_H_p_i.index({Slice(), j}), xt);
-            grad_H_p_ij.detach_();
+            grad_H_p_ij.detach();
             //third_order_derivative.select(1, i).select(2, j).copy_(grad_H_p_ij);
             third_order_derivative.index_put_({Slice(), i, j}, grad_H_p_ij);
         }
-        grad_H_p_i.detach_();
+        grad_H_p_i.detach();
     }
-    xt.detach_();
-    pt.detach_();
-    Hvalue.detach_();
+    xt.detach();
+    pt.detach();
+    Hvalue.detach();
 
     // Return the third-order derivative tensor
     return third_order_derivative;
@@ -1108,6 +1068,7 @@ torch::Tensor evalDyns(const torch::Tensor &y,
     dyns.index_put_({Slice(), Slice(N, 2*N)}, dotx);
     return dyns.clone();
 }
+
 
 template<typename T>
 torch::Tensor evalJac(const torch::Tensor & y, T W, std::function<torch::Tensor(const torch::Tensor&, 
