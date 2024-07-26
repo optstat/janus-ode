@@ -144,12 +144,12 @@ torch::Tensor pxH(const torch::Tensor &x,
     // Compute the gradient of Hvalue with respect to xt
     //auto grad_H_wrt_x = torch::autograd::grad({Hvalue}, {xt}, {torch::ones_like(Hvalue)})[0];
     auto grad_H_wrt_x = safe_jac(Hvalue, xt);
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
-    grad_H_wrt_x.detach();
+    auto xtc = xt.detach();
+    auto ptc = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto grad_H_wrt_xc = grad_H_wrt_x.detach();
 
-    return grad_H_wrt_x;
+    return grad_H_wrt_xc;
 }
 
 template<typename T>
@@ -169,10 +169,10 @@ torch::Tensor ppH(const torch::Tensor &x,
 
     // Compute the gradient of Hvalue with respect to pt
     auto grad_H_wrt_p = torch::autograd::grad({Hvalue}, {pt}, {torch::ones_like(Hvalue)})[0];
-    pt.detach();
-    Hvalue.detach();
-    grad_H_wrt_p.detach();
-    return grad_H_wrt_p;
+    auto ptc = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto grad_H_wrt_pc = grad_H_wrt_p.detach();
+    return grad_H_wrt_pc;
 }
 
 template<typename T>
@@ -224,12 +224,12 @@ torch::Tensor ppppH(const torch::Tensor &x,
         // Assign the gradient to the corresponding row of the Hessian matrix
         hessian.index_put_({Slice(), i, Slice()}, grad_p_i);
     }
-    pt.detach();
-    Hvalue.detach();
-    
+    auto ptc      = pt.detach();
+    auto Hvaluec  = Hvalue.detach();
+    auto hessianc = hessian.detach();
 
     // Return the Hessian
-    return hessian;
+    return hessianc;
 }
 
 
@@ -280,10 +280,11 @@ torch::Tensor pxpxH(const torch::Tensor &x,
         grad_x_i.detach();
         hessian.index_put_({Slice(), i}, grad_x_i);
     }
-    xt.detach();
-    Hvalue.detach();
+    auto xtc = xt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto hessianc = hessian.detach();
     // Return the Hessian
-    return hessian;
+    return hessianc;
 }
 
 
@@ -337,12 +338,12 @@ torch::Tensor pxppH(const torch::Tensor &x,
         grad_H_p_i.detach();
         mixed_hessian.index_put_({Slice(), i}, grad_H_p_i);
     }
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
-
+    auto xtc = xt.detach();
+    auto ptc = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto mixed_hessianc = mixed_hessian.detach();
     // Return the mixed Hessian
-    return mixed_hessian;
+    return mixed_hessianc;
 }
 
 template<typename T>
@@ -394,12 +395,12 @@ torch::Tensor pppxH(const torch::Tensor &x,
         grad_H_x_i.detach();
         mixed_hessian.index_put_({Slice(), i}, grad_H_x_i);
     }
-    pt.detach();
-    xt.detach();
-    Hvalue.detach();
-
+    auto ptc = pt.detach();
+    auto xtc = xt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto mixed_hessianc = mixed_hessian.detach();
     // Return the mixed Hessian
-    return mixed_hessian;
+    return mixed_hessianc;
 }
 
 
@@ -470,11 +471,11 @@ torch::Tensor ppppppH(const torch::Tensor &x,
         grad_H_p_i.detach();
     
     }
-    pt.detach();
-    Hvalue.detach();
-
+    auto ptc = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 
@@ -536,11 +537,11 @@ torch::Tensor pxpxpxH(const torch::Tensor &x,
         }
         grad_H_p_i.detach();
     }
-    xt.detach();
-    Hvalue.detach();
-
+    auto xtc = xt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 template<typename T>
@@ -615,13 +616,13 @@ torch::Tensor pppppxH(const torch::Tensor &x,
         }
         grad_H_x_p_i.detach();
     }
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
+    auto xtc = xt.detach();
+    auto ptc = pt.detach();
+    auto Hvaluec = Hvalue.detach();
 
-
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 template<typename T>
@@ -690,12 +691,12 @@ torch::Tensor pppxpxH(const torch::Tensor &x,
         }
         grad_H_x_i.detach();
     }
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
-
+    auto xtc = xt.detach();
+    auto ptc = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 template<typename T>
@@ -765,12 +766,12 @@ torch::Tensor pxpppxH(const torch::Tensor &x,
         }
         grad_H_p_i.detach();
     }
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
-
+    auto xtc     = xt.detach();
+    auto ptc     = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 
@@ -842,12 +843,12 @@ torch::Tensor pppxppH(const torch::Tensor &x,
         }
         grad_H_p_i.detach();
     }
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
-
+    auto xtc     = xt.detach();
+    auto ptc     = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 
@@ -918,12 +919,12 @@ torch::Tensor pxpxppH(const torch::Tensor &x,
         }
         grad_H_p_i.detach();
     }
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
-
+    auto xtc     = xt.detach();
+    auto ptc     = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 
@@ -996,12 +997,12 @@ torch::Tensor pxppppH(const torch::Tensor &x,
         }
         grad_H_p_i.detach();
     }
-    xt.detach();
-    pt.detach();
-    Hvalue.detach();
-
+    auto xtc = xt.detach();
+    auto ptc = pt.detach();
+    auto Hvaluec = Hvalue.detach();
+    auto third_order_derivativec = third_order_derivative.detach();
     // Return the third-order derivative tensor
-    return third_order_derivative;
+    return third_order_derivativec;
 }
 
 template<typename T>
