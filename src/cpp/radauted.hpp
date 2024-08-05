@@ -2212,7 +2212,7 @@ namespace janus
      * SOLVRAD  Solves the linear system for the Radau collocation method.
      * This assumes that the samples are for a given stage only
      */
-    void Solvrad(const torch::Tensor &mask, int stage)
+    void Solvrad(torch::Tensor &mask, int stage)
     {
       TensorDual valp;
 
@@ -2254,7 +2254,7 @@ namespace janus
         if (torch::any(torch::isnan(z.r)).eq(true_tensor).item<bool>())
         {
           std::cerr << "Some components of the solution are NAN" << std::endl;
-          exit(1);
+          mask.index_put_({mask.clone()}, ~mask); //This effectively terminates calculations for these samples
         }
         // For this mask stage is equal to NbrStg so no need to check
         auto indxs = mask & (stage > 1);
