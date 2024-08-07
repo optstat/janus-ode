@@ -165,7 +165,9 @@ TEST(HamiltonianTest, dynsTest)
 
 }
 
-torch::Tensor H(const torch::Tensor &x, const torch::Tensor &p, double W)
+torch::Tensor H(const torch::Tensor &x, 
+                const torch::Tensor &p, 
+                double W)
 { 
   torch::Tensor p1 = p.index({Slice(), 0});
   torch::Tensor p2 = p.index({Slice(), 1});
@@ -175,6 +177,23 @@ torch::Tensor H(const torch::Tensor &x, const torch::Tensor &p, double W)
   auto H=p1*x2-(p2*((1-x1*x1)*x2-x1)).pow(2)/W;
   return H;
 };
+/**
+ * Hamiltonian with control
+ */
+torch::Tensor Hu(const torch::Tensor &x, 
+                 const torch::Tensor &p,
+                 const torch::Tensor &u, 
+                 double W)
+{ 
+  torch::Tensor p1 = p.index({Slice(), 0});
+  torch::Tensor p2 = p.index({Slice(), 1});
+  torch::Tensor x1 = x.index({Slice(), 0});
+  torch::Tensor x2 = x.index({Slice(), 1});
+        
+  auto Hpu=p1*x2+p2*u*((1-x1*x1)*x2-x1)+(W/2)*u*u+1;
+  return Hpu;
+};
+
 
 
 /**
@@ -200,6 +219,33 @@ TensorDual vdpdyns(const TensorDual& y, double W)
   //janus::print_dual(dyns);
   return dyns;
 };
+
+/**
+ * Explicit function for dynamics for Hamiltonian with control
+ */
+TensorDual vdpHudyns(const TensorDual& y, const torch::Tensor u, double W)
+{
+  TensorDual p1 = y.index({Slice(), 0});
+  TensorDual p2 = y.index({Slice(), 1});
+  TensorDual x1 = y.index({Slice(), 2});
+  TensorDual x2 = y.index({Slice(), 3});
+  int M = y.d.size(0);
+  int N = y.d.size(1);
+  int D = y.d.size(2);
+  TensorDual dyns = TensorDual(torch::zeros({M, N}, dtype(torch::kFloat64)),
+                               torch::zeros({M, N, D}, dtype(torch::kFloat64)));
+  //p1*x2+p2*u*((1-x1*x1)*x2-x1)+(W/2)*u*u+1
+  dyns.index_put_({Slice(), 0}, p2*u*(-2*x1*x2-1));
+  dyns.index_put_({Slice(), 1}, p1+p2*u*((1-x1*x1)));
+  dyns.index_put_({Slice(), 2}, x2);
+  dyns.index_put_({Slice(), 3}, u*((1-x1*x1)*x2-x1));
+
+  //std::cerr << "dyns=";
+  //janus::print_dual(dyns);
+  return dyns;
+};
+
+
 
 
 /**
@@ -239,6 +285,47 @@ TensorMatDual vdpjac(const TensorDual& y,
   jac.index_put_({Slice(), 3, 1},  -2*(x2*(1-x1*x1)-x1).pow(2)/W);
   jac.index_put_({Slice(), 3, 2}, 4*p2*(x2*(1-x1*x1)-x1)*(2*x1*x2+1) / W);
   jac.index_put_({Slice(), 3, 3}, -4*p2*(x2*(1-x1*x1)-x1)*(1-x1*x1)/W);
+
+
+  return jac;
+};
+
+
+/**
+ * Explicit function for jacobian for Hamiltonian with control
+ */
+TensorMatDual vdpHujac(const TensorDual& y, 
+                       const torch::Tensor u,
+                       double W)
+{
+  TensorDual p1 = y.index({Slice(), 0});
+  TensorDual p2 = y.index({Slice(), 1});
+  TensorDual x1 = y.index({Slice(), 2});
+  TensorDual x2 = y.index({Slice(), 3});
+  int M = y.d.size(0);
+  int N = y.d.size(1);
+  int D = y.d.size(2);
+
+  TensorMatDual jac = TensorMatDual(torch::zeros({M,N,N}, dtype(torch::kFloat64)),
+                                    torch::zeros({M,N,N,D}, dtype(torch::kFloat64))).to(y.device()); 
+  //the dynamics are rows and the state/costate are columns
+
+  //p2*u*(-2*x1*x2-1)
+  jac.index_put_({Slice(), Slice(0,1), 1}, u*(-2*x1*x2-1));
+  jac.index_put_({Slice(), Slice(0,1), 2}, p2*u*(-2*x2));
+  jac.index_put_({Slice(), Slice(0,1), 3}, p2*u*(-2*x1));
+
+  //p1+p2*u*((1-x1*x1))
+  jac.index_put_({Slice(), Slice(1,2), 0}, TensorDual::ones_like(p1));
+  jac.index_put_({Slice(), Slice(1,2), 1}, u*((1-x1*x1)));
+  jac.index_put_({Slice(), Slice(1,2), 2}, p2*u*((-2*x1)));
+
+  //x2
+  jac.index_put_({Slice(), Slice(2,3), 3}, TensorDual::ones_like(p1));
+
+  //u*((1-x1*x1)*x2-x1)
+  jac.index_put_({Slice(), Slice(3,4), 2}, u*(-2*x1*x2-1));
+  jac.index_put_({Slice(), Slice(3,4), 3}, u*((1-x1*x1)));
 
 
   return jac;
@@ -343,7 +430,28 @@ TEST(HamiltonianTest, DynsExplVsImplTest)
     }
 }
 
-TEST(HamiltonianTest, JacExplVsImplTest) 
+/**
+ * Test for explicit and implicit methods to calculating 
+ * the dual dynamics using an explicit method to calculate the dynamics 
+ * using rk4 versus an implicit method using the hamiltonian and a combination
+ * of dual numbers and backpropagation
+ *
+ * Using the implicit method the hamiltonian alone is used to calculate the dynamics
+ * as well as the sensitivity of the dynamics wrt the initial costate conditions p0
+ * after N steps of rk4 integration.
+ * That in turn is compared with the implicit method of calculating the dynamics and the
+ * dual sensitivity to initial conditions 
+ * \dot{x}=\partial_x H + \epsilon d_{p0} \partial_x H
+ * \dot{p}=-\partial_p H + \epsilon d_{x0} \partial_p H
+ * Now using the chain rule
+ * d_{p0} \partial_x H = \partial_x H \partial_p H x H d_{p0} p
+ * where x is the tensor product
+ * d_{x0} \partial_p H = \partial_p H \partial_x H x d_{x0} x
+ * \partial_x H \partial_p H  and \partial_p H \partial_x H can be calcuated using backpropagation
+ * whereas d_{p0} p and d_{p0} p are given by the dual part of the state and costate space respectively
+ * calculated using dual numbers
+ */
+TEST(HamiltonianUTest, DynsExplVsImplTestU) 
 {
 
 
@@ -368,20 +476,89 @@ TEST(HamiltonianTest, JacExplVsImplTest)
     y0dual.index_put_({Slice(), 0, 0}, 1.0);
     y0dual.index_put_({Slice(), 1, 1}, 1.0);
     auto y0ted = TensorDual(y0, y0dual);
+    //std::cerr << "y0ted=";
+    //janus::print_dual(y0ted);
     //Update the state space using euler for one step
     auto yted =y0ted.clone();
 
     for ( int i=0; i < 1000; i++)
     {
         yted = rk4(yted, W, h);
-    }
-    auto jacExpl = vdpjac(yted, W);//Calculate the dynamics at the new location
-    std::cerr << "Checking for memory leaks in explicit jacobian calculation" << std::endl;
-    for (int i=0; i < 100; i++)
+    }    //yted = yted +h*vdpdyns(yted, W);
+
+    //std::cerr << "Final  y0 real=" << y0ted.r << std::endl;
+    //std::cerr << "Final y0 dual=" << y0ted.d << std::endl;
+    //Calculate d/dp0 \partial H/\partial x by applying the dynamics one more time
+    torch::Tensor u = torch::rand({M, 1}, torch::kFloat64).to(yted.device());
+    auto dydt = vdpHudyns(yted, u, W);//Calculate the dynamics at the new location
+    //Do a dynamics check
+    //We need to check the dual part of the dynamics against the implicit method
+    auto x = yted.r.index({Slice(), Slice(2, 4)});
+    auto p = yted.r.index({Slice(), Slice(0, 2)});
+    auto ppHval = ppHu<double>(x, p,  u, W, Hu);  //dot{x}
+    EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(2, 4)}), ppHval));
+    auto pxHval = janus::pxHu<double>(x, p, u, W, Hu); //dot{p}
+    EXPECT_TRUE(torch::allclose(dydt.r.index({Slice(), Slice(0, 2)}), pxHval));
+    //Now compare with the APIs
+    //Check for memory leak
+    std::cerr << "Checking for memory leaks in explicit dynamics calculation" << std::endl;
+    for ( int i=0; i < 100; i++)
     {
-        auto jacImpl = evalJacDual<double>(yted, W, H);
+        auto implDyns = evalDynsUDual<double>(yted, u, W, Hu);
+        //std::cerr << "implDyns=";
+        //janus::print_dual(implDyns);
+        //std::cerr << "dydt=";
+        //janus::print_dual(dydt);
+        EXPECT_TRUE(torch::allclose(dydt.r, implDyns.r));
+        EXPECT_TRUE(torch::allclose(dydt.d, implDyns.d));    
     }
-    auto jacImpl = evalJacDual<double>(yted, W, H);
+}
+
+
+TEST(HamiltonianUTest, JacExplVsImplTest) 
+{
+
+
+    int M = 1;
+    int N = 2;
+    double W = 0.1;
+    double h = 0.000001;
+
+
+
+
+
+    //The Hamiltonian should yield the dynamics throught the dual gradients
+    auto device = torch::kCPU;
+    torch::Tensor y0 = torch::zeros({M, 2*N}, torch::kFloat64).to(device);
+    y0.index_put_({Slice(), 0}, -1.0); //p1
+    y0.index_put_({Slice(), 1}, -1.0); //p2
+    y0.index_put_({Slice(), 2}, 2.0); //x1
+    y0.index_put_({Slice(), 3}, 0.0); //x2
+
+    torch::Tensor y0dual = torch::zeros({M, 2*N, N}, torch::kFloat64).to(device);
+    y0dual.index_put_({Slice(), 0, 0}, 1.0);
+    y0dual.index_put_({Slice(), 1, 1}, 1.0);
+    auto y0ted = TensorDual(y0, y0dual);
+    //Update the state space using euler for one step
+    auto yted =y0ted.clone();
+
+    //for ( int i=0; i < 1000; i++)
+   //{
+    //    yted = rk4(yted, W, h);
+    //}
+    torch::Tensor u = torch::rand({M, 1}, torch::kFloat64).to(device);
+    auto jacExpl = vdpHujac(yted, u, W);//Calculate the dynamics at the new location
+    //std::cerr << "jacExpl=";
+    //janus::print_tensor(jacExpl.r);
+    //std::cerr << "Checking for memory leaks in explicit jacobian calculation" << std::endl;
+    //for (int i=0; i < 100; i++)
+    //{
+    //    auto jacImpl = evalJacDualU<double>(yted, u, W, Hu);
+    //}
+    auto jacImpl = evalJacDualU<double>(yted, u, W, Hu);
+    //std::cerr << "jacImpl=";
+    //janus::print_tensor(jacImpl.r);
     EXPECT_TRUE(torch::allclose(jacExpl.r, jacImpl.r));
     //std::cerr << "yted=";
     //janus::print_dual(yted);
@@ -392,6 +569,8 @@ TEST(HamiltonianTest, JacExplVsImplTest)
     //janus::print_tensor(jacImpl.d);
 
 }
+
+
 
 
 

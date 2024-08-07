@@ -29,6 +29,12 @@ set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
 # Set C++ standard
 set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
 
+# Set debug flags if CMAKE_BUILD_TYPE is Debug
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(STATUS "Debug mode: Adding debugging flags")
+    set_target_properties(odetest PROPERTIES COMPILE_FLAGS "-g")
+endif()
+
 
 # Ensure the test executable is built when running 'make test'
 add_custom_target(run_tests
