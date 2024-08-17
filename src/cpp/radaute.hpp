@@ -1282,7 +1282,7 @@ namespace janus
               if (torch::any(torch::isnan(f)).item<bool>())
               {
                 std::cerr << "Some components of the ODE are NAN" << std::endl;
-                return 1;
+                m1_11_2.index_put_({m1_11_2_2}, false); //This effectively terminates the loop for these samples
               }
             } // end for q
 
@@ -1319,7 +1319,7 @@ namespace janus
             if (torch::any(torch::isinf(thq)).item<bool>())
             {
               std::cerr << "thq has infinity" << std::endl;
-              return 2;
+              m1_11_2.index_put_({m1_11_2_2_1}, false); //This effectively terminates the loop for these samples
             }
             auto m1_11_2_2_1_1 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Newt == 2) & ~m1_11_2_continue & ~m1_continue;
             Theta.index_put_({m1_11_2_2_1_1}, thq.index({m1_11_2_2_1_1}));
