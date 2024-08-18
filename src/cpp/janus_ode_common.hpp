@@ -27,6 +27,13 @@ torch::Tensor track_op(const torch::Tensor& x) {
     return TrackOpFunction::apply(x);
 }
 
+std::string removeWhitespace(std::string str)
+{
+  str.erase(std::remove_if(str.begin(), str.end(), ::isspace), str.end());
+  return str;
+}
+
+
 
 bool are_tensors_connected(const torch::Tensor& x, const torch::Tensor& y) {
     auto grad_fn = y.grad_fn();

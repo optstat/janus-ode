@@ -21,11 +21,6 @@
 namespace janus
 {
 
-  std::string removeWhitespace(std::string str)
-  {
-    str.erase(std::remove_if(str.begin(), str.end(), ::isspace), str.end());
-    return str;
-  }
 
   using OdeFnType = std::function<TensorDual(const TensorDual &, const TensorDual &,
                                              const TensorDual &)>;
