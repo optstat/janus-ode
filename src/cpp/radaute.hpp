@@ -17,10 +17,6 @@
 #include <janus/qrte.hpp>
 #include <janus/qrtec.hpp>
 
-//For debugging purposes
-void (*pt)(const torch::Tensor&) = janus::print_tensor;
-void (*pd)(const TensorDual&) = janus::print_dual;
-void (*pmd)(const TensorMatDual&) = janus::print_dual;
 
 
 namespace janus
