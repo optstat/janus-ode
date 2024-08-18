@@ -22,15 +22,15 @@ namespace janus
 {
 
 
-  using OdeFnType = std::function<TensorDual(const TensorDual &, const TensorDual &,
+  using OdeFnTypeD = std::function<TensorDual(const TensorDual &, const TensorDual &,
                                              const TensorDual &)>;
-  using JacFnType = std::function<TensorMatDual(const TensorDual &, const TensorDual &,
+  using JacFnTypeD = std::function<TensorMatDual(const TensorDual &, const TensorDual &,
                                                 const TensorDual &)>;
-  using MassFnType = std::function<TensorDual(
+  using MassFnTypeD = std::function<TensorDual(
       TensorDual &, TensorDual &, TensorDual &)>;
-  using OutputFnType = std::function<void(const TensorDual &, const TensorDual &, std::string)>;
+  using OutputFnTypeD = std::function<void(const TensorDual &, const TensorDual &, std::string)>;
   //[value,isterminal,direction] = myEventsFcn(t,y)
-  using EventFnType =
+  using EventFnTypeD =
       std::function<std::tuple<TensorDual, TensorDual, torch::Tensor, TensorDual>(
           const TensorDual &, const TensorDual &, const TensorDual &)>;
 
@@ -41,11 +41,11 @@ namespace janus
   {
     torch::Tensor OutputSelDef = torch::empty({0}, torch::kFloat64); // Initialize with an empty tensor
 
-    OdeFnType OdeFcn = nullptr;
-    MassFnType MassFcn = nullptr;
-    OutputFnType OutputFcn = nullptr;
-    EventFnType EventsFcn = nullptr;
-    JacFnType JacFcn = nullptr;
+    OdeFnTypeD OdeFcn = nullptr;
+    MassFnTypeD MassFcn = nullptr;
+    OutputFnTypeD OutputFcn = nullptr;
+    EventFnTypeD EventsFcn = nullptr;
+    JacFnTypeD JacFcn = nullptr;
     bool Complex = false;
     int Refine = 1;
     bool StatsExist = true;
@@ -259,11 +259,11 @@ namespace janus
     // hmax is positive
     // Define the std::function type for a function that takes two tensors
     // and returns a tensor
-    OdeFnType OdeFcn = nullptr;
-    JacFnType JacFcn = nullptr;
-    MassFnType MassFcn = nullptr;
-    EventFnType EventsFcn = nullptr;
-    OutputFnType OutputFcn = nullptr;
+    OdeFnTypeD OdeFcn = nullptr;
+    JacFnTypeD JacFcn = nullptr;
+    MassFnTypeD MassFcn = nullptr;
+    EventFnTypeD EventsFcn = nullptr;
+    OutputFnTypeD OutputFcn = nullptr;
 
     int MaxNbrStep;
     bool OutputFcnExist = false;
@@ -406,7 +406,7 @@ namespace janus
     // Tranlate from matlab to cpp using libtorch.  Here use a constructor
     // function varargout = radau(OdeFcn,tspan,y0,options,varargin)
 
-    RadauTeD(OdeFnType OdeFcn, JacFnType JacFn, TensorDual &tspan,
+    RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
              TensorDual &y0, OptionsTeD &Op, TensorDual &params)
     {
       // Perform checks on the inputs
