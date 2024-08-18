@@ -32,11 +32,6 @@ namespace janus
     return filtered_x;
   }
 
-  std::string removeWhitespace(std::string str)
-  {
-    str.erase(std::remove_if(str.begin(), str.end(), ::isspace), str.end());
-    return str;
-  }
 
   using OdeFnType = std::function<torch::Tensor(const torch::Tensor &, const torch::Tensor &,
                                                 const torch::Tensor &)>;
