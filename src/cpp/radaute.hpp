@@ -97,14 +97,14 @@ namespace janus
 
   struct StatsTe
   {
-    static torch::Tensor FcnNbr;
-    static torch::Tensor JacNbr;
-    static torch::Tensor DecompNbr;
-    static torch::Tensor SolveNbr;
-    static torch::Tensor StepNbr;
-    static torch::Tensor AccptNbr;
-    static torch::Tensor StepRejNbr;
-    static torch::Tensor NewtRejNbr;
+    torch::Tensor FcnNbr;
+    torch::Tensor JacNbr;
+    torch::Tensor DecompNbr;
+    torch::Tensor SolveNbr;
+    torch::Tensor StepNbr;
+    torch::Tensor AccptNbr;
+    torch::Tensor StepRejNbr;
+    torch::Tensor NewtRejNbr;
   };
   /**
    * Structure captures the dynamic statistics of the solver
@@ -114,20 +114,20 @@ namespace janus
    */
   struct DynTe
   {
-    static torch::Tensor Jac_t;
-    static torch::Tensor Jac_Step;
-    static torch::Tensor haccept_t;
-    static torch::Tensor haccept_Step;
-    static torch::Tensor haccept;
-    static torch::Tensor hreject_t;
-    static torch::Tensor hreject_Step;
-    static torch::Tensor hreject;
-    static torch::Tensor Newt_t;
-    static torch::Tensor Newt_Step;
-    static torch::Tensor NewtNbr;
-    static torch::Tensor NbrStg_t;
-    static torch::Tensor NbrStg_Step;
-    static torch::Tensor NbrStg;
+    std::vector<torch::Tensor> Jac_t{};
+    std::vector<torch::Tensor> Jac_Step{};
+    std::vector<torch::Tensor> haccept_t{};
+    std::vector<torch::Tensor> haccept_Step{};
+    std::vector<torch::Tensor> haccept{};
+    std::vector<torch::Tensor> hreject_t{};
+    std::vector<torch::Tensor> hreject_Step{};
+    std::vector<torch::Tensor> hreject{};
+    std::vector<torch::Tensor> Newt_t{};
+    std::vector<torch::Tensor> Newt_Step{};
+    std::vector<torch::Tensor> NewtNbr{};
+    std::vector<torch::Tensor> NbrStg_t{};
+    std::vector<torch::Tensor> NbrStg_Step{};
+    std::vector<torch::Tensor> NbrStg{};
   };
 
   /**
@@ -415,7 +415,8 @@ namespace janus
     int debugNewt = 2;  // Count for which we will output debug information
     int count = 0, countNewt = 0;
     int sCheck = 8; // Sample to check against for debugging for vectorization issues
-
+    DynTe dyn;
+    StatsTe stats;
     // Tranlate from matlab to cpp using libtorch.  Here use a constructor
     // function varargout = radau(OdeFcn,tspan,y0,options,varargin)
 
@@ -785,31 +786,33 @@ namespace janus
       ValP7.to(device);
       Dd7.to(device);
 
+
+      stats.FcnNbr = torch::zeros({M}, torch::kInt64);
+      stats.StepNbr = torch::zeros({M}, torch::kInt64);
+      stats.JacNbr = torch::zeros({M}, torch::kInt64);
+      stats.DecompNbr = torch::zeros({M}, torch::kInt64);
+      stats.SolveNbr = torch::zeros({M}, torch::kInt64);
+      stats.AccptNbr = torch::zeros({M}, torch::kInt64);
+      stats.StepRejNbr = torch::zeros({M}, torch::kInt64);
+      stats.NewtRejNbr = torch::zeros({M}, torch::kInt64);
+
       // Initialize the statistics
-      janus::StatsTe::FcnNbr = torch::zeros({M}, torch::kInt64); // Add missing type specifier
-      janus::StatsTe::StepNbr = torch::zeros({M}, torch::kInt64);
-      janus::StatsTe::JacNbr = torch::zeros({M}, torch::kInt64);
-      janus::StatsTe::DecompNbr = torch::zeros({M}, torch::kInt64);
-      janus::StatsTe::SolveNbr = torch::zeros({M}, torch::kInt64);
-      janus::StatsTe::AccptNbr = torch::zeros({M}, torch::kInt64);
-      janus::StatsTe::StepRejNbr = torch::zeros({M}, torch::kInt64);
-      janus::StatsTe::NewtRejNbr = torch::zeros({M}, torch::kInt64);
-      // Initialization of Dyn parameters.  These parameters are concatenated as they are being calculated
-      // so we intialize them here as empty tensors
-      janus::DynTe::Jac_t = torch::empty({M}, torch::kDouble);
-      janus::DynTe::Jac_Step = torch::empty({M}, torch::kDouble);
-      janus::DynTe::haccept_t = torch::empty({M}, torch::kDouble);
-      janus::DynTe::haccept_Step = torch::empty({M}, torch::kDouble);
-      janus::DynTe::haccept = torch::empty({M}, torch::kDouble);
-      janus::DynTe::hreject_t = torch::empty({M}, torch::kDouble);
-      janus::DynTe::hreject_Step = torch::empty({M}, torch::kInt64);
-      janus::DynTe::hreject = torch::empty({M}, torch::kDouble);
-      janus::DynTe::Newt_t = torch::empty({M}, torch::kDouble);
-      janus::DynTe::Newt_Step = torch::empty({M}, torch::kDouble);
-      janus::DynTe::NewtNbr = torch::empty({M}, torch::kInt64);
-      janus::DynTe::NbrStg_t = torch::empty({M}, torch::kInt64);
-      janus::DynTe::NbrStg_Step = torch::empty({M}, torch::kInt64);
-      janus::DynTe::NbrStg = torch::empty({M}, torch::kInt64);
+      dyn.Jac_t.resize(M);
+      dyn.Jac_Step.resize(M);
+      dyn.haccept_t.resize(M);
+      dyn.haccept_Step.resize(M);
+      dyn.haccept.resize(M);
+      dyn.hreject_t.resize(M);
+      dyn.hreject_Step.resize(M);
+      dyn.hreject.resize(M);
+      dyn.Newt_t.resize(M);
+      dyn.Newt_Step.resize(M);
+      dyn.NewtNbr.resize(M);
+      dyn.NbrStg_t.resize(M);
+      dyn.NbrStg_Step.resize(M);
+      dyn.NbrStg.resize(M);
+
+
 
       Last = torch::zeros({M}, torch::dtype(torch::kBool)).to(device);
 
@@ -865,8 +868,11 @@ namespace janus
                         Scal.index({NbrInd1.index({m9}) + NbrInd2.index({m9}) + 1, NbrInd1.index({m9}) + NbrInd2.index({m9}) + NbrInd3.index({m9})}) / bpow(hhfac.index({m9}), 2.0));
       }
       f0 = OdeFcn(t, y, params);
+      for (int i = 0; i < M; i++)
+      {
+        stats.FcnNbr[i] = stats.FcnNbr[i] + 1;
+      }
 
-      StatsTe::FcnNbr = StatsTe::FcnNbr + 1;
       // Use different tensors for the different stages
       NeedNewJac = torch::ones({M}, torch::kBool).to(device);
       NeedNewQR = torch::ones({M}, torch::kBool).to(device);
@@ -958,7 +964,7 @@ namespace janus
       count = 0;
       // MAIN LOOP
       torch::Tensor m1_continue = torch::zeros({M}, torch::kBool).to(device);
-      while (m1 = m1 & (StatsTe::StepNbr <= MaxNbrStep) &
+      while (m1 = m1 & (count <= MaxNbrStep) &
                   ((PosNeg * t) < (PosNeg * tfinal)),
              m1.any().equal(true_tensor)) // line 849 fortran
       {
@@ -967,7 +973,12 @@ namespace janus
         // Reset it to false at the beginning of the loop
         m1_continue = ~m1;
 
-        StatsTe::StepNbr.index_put_({m1}, StatsTe::StepNbr.index({m1}) + 1);
+        auto m1nnz = m1.nonzero();
+        for (int i = 0; i < m1nnz.numel(); i++)
+        {
+          int idx = m1nnz[i].item<int>();
+          stats.StepNbr[idx] = stats.StepNbr[idx] + 1;
+        }
 
         FacConv.index_put_({m1}, bpow(torch::max(FacConv.index({m1}), eps), p8)); // Convergence factor
         torch::Tensor m1_1 = m1 & NeedNewJac & ~m1_continue;
@@ -987,14 +998,14 @@ namespace janus
         Jac.index_put_({m1_1}, JacFcn(t.index({m1_1}), y.index({m1_1}), params));
 
         // Assume the statistics are always selected
-        StatsTe::JacNbr.index_put_({m1_1}, StatsTe::JacNbr.index({m1_1}) + 1);
+        //StatsTe::JacNbr.index_put_({m1_1}, StatsTe::JacNbr.index({m1_1}) + 1);
         // This uses NaN padding for samples that are no longer active
         auto tt = torch::full({M}, std::numeric_limits<float>::quiet_NaN(), torch::kFloat64).to(device);
         tt.index_put_({m1_1}, t.index({m1_1}));
-        DynTe::Jac_t = torch::cat({DynTe::Jac_t, tt});
+        //DynTe::Jac_t = torch::cat({DynTe::Jac_t, tt});
         auto hh = torch::full({M}, std::numeric_limits<float>::quiet_NaN(), torch::kFloat64).to(device);
         hh.index_put_({m1_1}, h.index({m1_1}));
-        DynTe::Jac_Step = torch::cat({DynTe::Jac_Step, hh});
+        //DynTe::Jac_Step = torch::cat({DynTe::Jac_Step, hh});
         NeedNewJac.index_put_({m1_1}, false); // Reset the flag
         NeedNewQR.index_put_({m1_1}, true);
         // Setup and Initiallization phase
@@ -1089,7 +1100,7 @@ namespace janus
           torch::Tensor m1_3 = m1 & NeedNewQR & (stage == NbrStg) & ~m1_continue;
           DecomRC(m1_3, stage); // Decompose the matrices
 
-          StatsTe::DecompNbr.index_put_({m1_3}, StatsTe::DecompNbr.index({m1_3}) + 1);
+          //StatsTe::DecompNbr.index_put_({m1_3}, StatsTe::DecompNbr.index({m1_3}) + 1);
           NeedNewQR.index_put_({m1_3}, false);
           // See if any samples are singular
           auto m1_3_1 = m1 & m1_3 & (U_Sing > 0);
@@ -1246,8 +1257,8 @@ namespace janus
             Newt.index_put_({m1_11_2}, Newt.index({m1_11_2}) + 1);
             auto m1_11_2_1 = m1 & m1_11_2 & (Newt > Nit) & ~m1_continue & ~m1_11_2_continue;
             UnExpStepRej.index_put_({m1_11_2_1}, true);
-            StatsTe::StepRejNbr.index_put_({m1_11_2_1}, StatsTe::StepRejNbr.index({m1_11_2_1}) + 1);
-            StatsTe::NewtRejNbr.index_put_({m1_11_2_1}, StatsTe::NewtRejNbr.index({m1_11_2_1}) + 1);
+            //StatsTe::StepRejNbr.index_put_({m1_11_2_1}, StatsTe::StepRejNbr.index({m1_11_2_1}) + 1);
+            //StatsTe::NewtRejNbr.index_put_({m1_11_2_1}, StatsTe::NewtRejNbr.index({m1_11_2_1}) + 1);
             h.index_put_({m1_11_2_1}, h.index({m1_11_2_1}) * 0.5);
             hhfac.index_put_({m1_11_2_1}, torch::tensor(0.5, torch::kFloat64).to(device));
             Reject.index_put_({m1_11_2_1}, true);
@@ -1277,7 +1288,7 @@ namespace janus
               }
             } // end for q
 
-            StatsTe::FcnNbr.index_put_({m1_11_2_2}, StatsTe::FcnNbr.index({m1_11_2_2}) + stage);
+            //StatsTe::FcnNbr.index_put_({m1_11_2_2}, StatsTe::FcnNbr.index({m1_11_2_2}) + stage);
             for (int n = 1; n <= Ny; n++)
             {
               z.index_put_({m1_11_2_2, n - 1}, torch::einsum("j, m->mj", {TI.index({0}), f.index({m1_11_2_2, n - 1, 0})}));
@@ -1293,7 +1304,7 @@ namespace janus
             // Check to see if the Scal values are all the same
             Solvrad(m1_11_2_2, stage);
 
-            StatsTe::SolveNbr.index_put_({m1_11_2_2}, StatsTe::SolveNbr.index({m1_11_2_2}) + 1);
+            //StatsTe::SolveNbr.index_put_({m1_11_2_2}, StatsTe::SolveNbr.index({m1_11_2_2}) + 1);
             //% Estimate the error in the current iteration step
             NewNrm.index_put_({m1_11_2_2}, 0.0);
             for (int q = 1; q <= stage; q++)
@@ -1333,8 +1344,8 @@ namespace janus
             Reject.index_put_({m1_11_2_2_1_3_1}, true);
             Last.index_put_({m1_11_2_2_1_3_1}, false);
             UnExpNewtRej.index_put_({m1_11_2_2_1_3_1}, (hhfac.index({m1_11_2_2_1_3_1}) <= 0.5));
-            StatsTe::NewtRejNbr.index_put_({m1_11_2_2_1_3_1}, StatsTe::NewtRejNbr.index({m1_11_2_2_1_3_1}) + 1);
-            StatsTe::StepRejNbr.index_put_({m1_11_2_2_1_3_1}, StatsTe::StepRejNbr.index({m1_11_2_2_1_3_1}) + 1);
+            //StatsTe::NewtRejNbr.index_put_({m1_11_2_2_1_3_1}, StatsTe::NewtRejNbr.index({m1_11_2_2_1_3_1}) + 1);
+            //StatsTe::StepRejNbr.index_put_({m1_11_2_2_1_3_1}, StatsTe::StepRejNbr.index({m1_11_2_2_1_3_1}) + 1);
             NeedNewQR.index_put_({m1_11_2_2_1_3_1}, true); //% GOTO 20 or GOTO 10
 
             // There is a break statement here for the deterministic case so update the root mask
@@ -1345,7 +1356,13 @@ namespace janus
             Reject.index_put_({m1_11_2_2_1_4}, true);
             Last.index_put_({m1_11_2_2_1_4}, false);
             UnExpStepRej.index_put_({m1_11_2_2_1_4}, true);
-            StatsTe::StepRejNbr.index_put_({m1_11_2_2_1_4}, StatsTe::StepRejNbr.index({m1_11_2_2_1_4}) + 1);
+            auto m1_11_2_2_1_4nnz = m1_11_2_2_1_4.nonzero();
+            for (int i = 0; i < m1_11_2_2_1_4nnz.numel(); i++)
+            {
+              int idx = m1_11_2_2_1_4nnz[i].item<int>();
+              stats.StepRejNbr[idx] = stats.StepRejNbr[idx] + 1;
+            }
+
             NeedNewQR.index_put_({m1_11_2_2_1_4}, true);
             // There is a break statement so update the root mask
             m1_11_2.index_put_({m1_11_2_2_1_4}, false);
@@ -1440,7 +1457,15 @@ namespace janus
             if ((m1_12_1).any().item<bool>())
             { // ------- STEP IS ACCEPTED
               First.index_put_({m1_12_1}, false);
-              StatsTe::AccptNbr.index_put_({m1_12_1}, StatsTe::AccptNbr.index({m1_12_1}) + 1);
+
+              auto m1_12_1nnz = m1_12_1.nonzero();
+              for (int i = 0; i < m1_12_1nnz.numel(); i++)
+              {
+                int idx = m1_12_1nnz[i].item<int>();
+                stats.AccptNbr[idx] = stats.AccptNbr[idx] + 1;
+              }
+
+              //StatsTe::AccptNbr.index_put_({m1_12_1}, StatsTe::AccptNbr.index({m1_12_1}) + 1);
 
               // Dyn.haccept_t    = [Dyn.haccept_t;t];
               // auto tt = torch::full({M}, std::numeric_limits<float>::quiet_NaN(), torch::kFloat64).to(device);
@@ -1466,7 +1491,7 @@ namespace janus
               // ------- PREDICTIVE CONTROLLER OF GUSTAFSSON
               auto m1_12_1_1 = m1 & m1_12 & m1_12_1 & Gustafsson & ~ChangeFlag & ~m1_continue;
 
-              auto m1_12_1_1_1 = m1 & m1_12 & m1_12_1 & (StatsTe::AccptNbr > 1) & ~m1_continue;
+              auto m1_12_1_1_1 = m1 & m1_12 & m1_12_1 & (stats.AccptNbr > 1) & ~m1_continue;
               if (m1_12_1_1_1.any().equal(true_tensor))
               {
                 facgus.index_put_({m1_12_1_1_1}, (hacc.index({m1_12_1_1_1}) / h.index({m1_12_1_1_1})) * bpow((err.index({m1_12_1_1_1}).square() / erracc.index({m1_12_1_1_1})), 1.0 / (NbrStg.index({m1_12_1_1_1}) + 1.0)) / Safe);
@@ -1606,7 +1631,7 @@ namespace janus
               auto m1_12_1_4 = m1 & m1_12_1 & (Last) & ~m1_continue;    
 
               h.index_put_({m1_12_1_4}, hopt.index({m1_12_1_4}));
-              StatsTe::StepRejNbr.index_put_({m1_12_1_4}, StatsTe::StepRejNbr.index({m1_12_1_4}) + 1);
+              stats.StepRejNbr.index_put_({m1_12_1_4}, stats.StepRejNbr.index({m1_12_1_4}) + 1);
               // Update the higher level mask to reflect the break statement
               m1.index_put_({m1_12_1_4}, false);
               // We have introduced a break statement.  We need to refilter the root mask
@@ -1619,7 +1644,8 @@ namespace janus
                 std::cerr << "Some components of the ODE are NAN" << std::endl;
                 return 1;
               }
-              StatsTe::FcnNbr.index_put_({m1_12_1_5}, StatsTe::FcnNbr.index({m1_12_1_5}) + 1);
+              stats.FcnNbr.index_put_({m1_12_1_5}, stats.FcnNbr.index({m1_12_1_5}) + 1);
+
               // hnew            = PosNeg * min(abs(hnew),abs(hmaxn));
               hnew.index_put_({m1_12_1_5}, PosNeg.index({m1_12_1_5}) * torch::min(torch::abs(hnew.index({m1_12_1_5})), torch::abs(hmaxn.index({m1_12_1_5}))));
               hopt.index_put_({m1_12_1_5}, PosNeg.index({m1_12_1_5}) * torch::min(torch::abs(h.index({m1_12_1_5})), torch::abs(hnew.index({m1_12_1_5}))));
@@ -1661,9 +1687,9 @@ namespace janus
             auto m1_12_2 = m1 & m1_12 & (err >= 1) & ~m1_continue;
             //%  --- STEP IS REJECTED
 
-            DynTe::hreject_t.index_put_({m1_12_2}, t.index({m1_12_2}));
-            DynTe::hreject_Step.index_put_({m1_12_2}, StatsTe::StepNbr.index({m1_12_2}));
-            DynTe::hreject.index_put_({m1_12_2}, h.index({m1_12_2}));
+            //DynTe::hreject_t.index_put_({m1_12_2}, t.index({m1_12_2}));
+            //DynTe::hreject_Step.index_put_({m1_12_2}, StatsTe::StepNbr.index({m1_12_2}));
+            //DynTe::hreject.index_put_({m1_12_2}, h.index({m1_12_2}));
 
             Reject.index_put_({m1_12_2}, true);
             Last.index_put_({m1_12_2}, false);
@@ -1674,8 +1700,8 @@ namespace janus
             auto m1_12_2_2 = m1 & m1_12 & m1_12_2 & (~First) & ~m1_continue;
             hhfac.index_put_({m1_12_2_2}, hnew.index({m1_12_2_2}) / h.index({m1_12_2_2}));
             h.index_put_({m1_12_2_2}, hnew.index({m1_12_2_2}));
-            auto m1_12_2_3 = m1 & m1_12 & m1_12_2 & (StatsTe::AccptNbr >= 1) & ~m1_continue;
-            StatsTe::StepRejNbr.index_put_({m1_12_2_3}, StatsTe::StepRejNbr.index({m1_12_2_3}) + 1);
+            auto m1_12_2_3 = m1 & m1_12 & m1_12_2 & (stats.AccptNbr >= 1) & ~m1_continue;
+            stats.StepRejNbr.index_put_({m1_12_2_3}, stats.StepRejNbr.index({m1_12_2_3}) + 1);
             NeedNewQR.index_put_({m1_12_2}, true);
           } // End of m1_12 which is the mask for the current stage
 
@@ -1700,7 +1726,7 @@ namespace janus
           }
         }
         OutputFcn(t, y, "done");
-        auto m2 = (StatsTe::StepNbr > MaxNbrStep);
+        auto m2 = (stats.StepNbr > MaxNbrStep);
         if (m2.any().item<bool>())
         {
           std::cerr << "More than MaxNbrStep = " << MaxNbrStep << " steps are needed" << std::endl;
@@ -2177,7 +2203,7 @@ namespace janus
         {
           torch::Tensor yadj = y.index({m1_1}) + err.index({m1_1}).unsqueeze(1);
           err_v = OdeFcn(t.index({m1_1}), yadj, params);
-          StatsTe::FcnNbr.index_put_({m1_1}, StatsTe::FcnNbr.index({m1_1}) + 1);
+          stats.FcnNbr.index_put_({m1_1}, stats.FcnNbr.index({m1_1}) + 1);
           auto errptemp = (err_v + temp.index({m1_1}));
           // convert to complex
           auto errpComplex = torch::complex(errptemp, torch::zeros_like(errptemp));

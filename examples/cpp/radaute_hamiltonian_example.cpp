@@ -85,30 +85,6 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> vdpEvents
     return std::make_tuple(t, E, Stop, Slope);
 }
 
-    //Initialize the statistics
-torch::Tensor  janus::StatsTe::FcnNbr=torch::empty({0}, torch::kInt64); // Add missing type specifier
-torch::Tensor  janus::StatsTe::StepNbr = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::StatsTe::JacNbr = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::StatsTe::DecompNbr = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::StatsTe::SolveNbr = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::StatsTe::AccptNbr = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::StatsTe::StepRejNbr = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::StatsTe::NewtRejNbr = torch::empty({0}, torch::kInt64);
-  //% Initialisation of Dyn parameters
-torch::Tensor  janus::DynTe::Jac_t = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::Jac_Step = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::haccept_t = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::haccept_Step = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::haccept = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::hreject_t = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::hreject_Step = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::hreject = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::Newt_t = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::Newt_Step = torch::empty({0}, torch::kDouble);
-torch::Tensor  janus::DynTe::NewtNbr = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::DynTe::NbrStg_t = torch::empty({0}, torch::kInt64);
-torch::Tensor  janus::DynTe::NbrStg_Step = torch::tensor({0}, torch::kInt64);
-torch::Tensor  janus::DynTe::NbrStg = torch::tensor({0}, torch::kInt64);
 
 
 
