@@ -32,6 +32,8 @@ set(SOURCE_FILE2 radaute_example.cpp)
 set(SOURCE_FILE3 radauted_example.cpp)
 set(SOURCE_FILE4 safe_gradients_example.cpp)
 set(SOURCE_FILE5 radauted_vdp_norm_example.cpp)
+set(SOURCE_FILE6 radaute_example_reverse.cpp)
+set(SOURCE_FILE7 radauted_example_reverse.cpp)
 
 add_executable(vdphamexample ${SOURCE_FILE1})
 # Link libraries
@@ -59,6 +61,16 @@ add_executable(vdpnormexample ${SOURCE_FILE5})
 target_link_libraries(vdpnormexample "${TORCH_LIBRARIES}")
 target_link_libraries(vdpnormexample Python3::Python Python3::NumPy)
 
+add_executable(vdp_example_reverse ${SOURCE_FILE6})
+# Link libraries for the second executable
+target_link_libraries(vdp_example_reverse "${TORCH_LIBRARIES}")
+target_link_libraries(vdp_example_reverse Python3::Python Python3::NumPy)
+
+add_executable(vdp_example_dual_reverse ${SOURCE_FILE7})
+# Link libraries for the second executable
+target_link_libraries(vdp_example_dual_reverse "${TORCH_LIBRARIES}")
+target_link_libraries(vdp_example_dual_reverse Python3::Python Python3::NumPy)
+
 
 # Ensure the executable is built when running 'make vdphamexample'
 add_custom_target(create_vdphamexample
@@ -82,4 +94,12 @@ add_custom_target(create_safegradexample
 
 add_custom_target(create_vdpnormexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpnormexample
+)
+
+add_custom_target(create_vdpexample_reverse
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_example_reverse
+)
+
+add_custom_target(create_vdpexample_dual_reverse
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_example_dual_reverse
 )
