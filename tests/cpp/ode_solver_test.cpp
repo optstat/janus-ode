@@ -1,3 +1,5 @@
+#define HEADER_ONLY
+
 #include <gtest/gtest.h>
 #include <torch/torch.h>
 #include <random>

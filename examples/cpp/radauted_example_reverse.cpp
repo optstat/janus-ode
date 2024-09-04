@@ -1,3 +1,4 @@
+#define HEADER_ONLY
 #include "../../src/cpp/radauted.hpp"
 #include "../../src/cpp/radaute.hpp"
 #include <janus/tensordual.hpp>
