@@ -42,11 +42,11 @@ set(HEADER_DEST_DIR "/usr/local/include/janus")
 
 # Add libraries if not header-only
 if(NOT HEADER_ONLY)
-    add_library(radauted STATIC src/cpp/radauted.cpp)
+    add_library(radauted SHARED src/cpp/radauted.cpp)
     target_include_directories(radauted PUBLIC ${CMAKE_SOURCE_DIR}/src/cpp)
     target_link_libraries(radauted PRIVATE ${TORCH_LIBRARIES})
 
-    add_library(radaute STATIC src/cpp/radaute.cpp)
+    add_library(radaute SHARED src/cpp/radaute.cpp)
     target_include_directories(radaute PUBLIC ${CMAKE_SOURCE_DIR}/src/cpp)
     target_link_libraries(radaute PRIVATE ${TORCH_LIBRARIES})
 endif()
