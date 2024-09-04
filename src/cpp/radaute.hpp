@@ -423,7 +423,7 @@ namespace janus
     RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             torch::Tensor &y0, OptionsTe &Op, torch::Tensor &params);
 
-    int solve();
+    torch::Tensor solve();
 
     void set_active_stage(int stage);
 

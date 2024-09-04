@@ -408,7 +408,7 @@ namespace janus
     RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
              TensorDual &y0, OptionsTeD &Op, TensorDual &params);
 
-    int solve();
+    torch::Tensor solve();
 
     void set_active_stage(int stage);
 
