@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(JanusLinearProject)
 
 # Option to build as header-only
-option(HEADER_ONLY "Build as header-only library" OFF)
+option(HEADER_ONLY "Build as header-only library" ON)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -27,7 +27,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
 include_directories(${CMAKE_SOURCE_DIR}/src/cpp)
 
-enable_testing()
 
 # Find libtorch. Modify this line to find your own libtorch installation.
 set(Torch_DIR "/home/panos/Applications/libtorch/share/cmake/Torch")
@@ -40,30 +39,5 @@ find_package(Threads REQUIRED)
 set(HEADER_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/cpp")
 set(HEADER_DEST_DIR "/usr/local/include/janus")
 
-# Add libraries if not header-only
-if(NOT HEADER_ONLY)
-    add_library(radauted SHARED src/cpp/radauted.cpp)
-    target_include_directories(radauted PUBLIC ${CMAKE_SOURCE_DIR}/src/cpp)
-    target_link_libraries(radauted PRIVATE ${TORCH_LIBRARIES})
-
-    add_library(radaute SHARED src/cpp/radaute.cpp)
-    target_include_directories(radaute PUBLIC ${CMAKE_SOURCE_DIR}/src/cpp)
-    target_link_libraries(radaute PRIVATE ${TORCH_LIBRARIES})
-endif()
-
-# Add subdirectory for tests and examples
-add_subdirectory(tests/cpp)
-add_subdirectory(examples/cpp)
-
-# Handle header-only mode
-if(HEADER_ONLY)
-    add_definitions(-DHEADER_ONLY)
-    # Pass -DHEADER_ONLY to the compiler as an argument
-    add_compile_definitions(HEADER_ONLY)
-    # Install headers only
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ DESTINATION include/janus FILES_MATCHING PATTERN "*.hpp")
-else()
-    # Install libraries and headers
-    install(TARGETS radauted radaute ARCHIVE DESTINATION lib)
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ DESTINATION include/janus FILES_MATCHING PATTERN "*.hpp")
-endif()
+# Install headers to the system include directory
+install(DIRECTORY ${HEADER_SOURCE_DIR}/ DESTINATION ${HEADER_DEST_DIR}/ FILES_MATCHING PATTERN "*.hpp")

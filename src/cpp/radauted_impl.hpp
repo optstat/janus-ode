@@ -607,7 +607,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
     } // end constructor
 
 
-    inline int RadauTeD::solve()
+    inline torch::Tensor RadauTeD::solve()
     {
       /**
        * Initialize the data structures
@@ -615,6 +615,8 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
       // Reset the tters
       nout = torch::zeros({M}, torch::kInt64);
       nout3 = torch::zeros({M}, torch::kInt64);
+      auto res = torch::zeros({M}, torch::kFloat64).to(device);
+
       // Test for the samples that have achieved convergence
       // Declare m1 as a boolean tensor otherwise the assigment fails
       // Have to start with all flags as true so we can enter the loop
@@ -830,6 +832,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           if (m1_5.eq(true_tensor).any().item<bool>())
           {
             std::cerr << Solver_Name << "Warning: Step size too small " << std::endl;
+            res.index_put_({m1_5}, 1);
             // TO DO: Modify this so that not all samples are rejected
             m1.index_put_({m1_5}, false); //This effectively ends the loop for these samples
           }
@@ -1030,6 +1033,11 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                 {
                   std::cerr << "Some components of the ODE are NAN" << std::endl;
                   m1_11_2.index_put_({m1_11_2_2}, false); // This effectively ends the loop for these samples
+                  res.index_put_({m1_11_2_2}, 2);
+                  //Update the masks accordingly
+                  m1.index_put_({m1_11_2_2}, false);
+                  m1_11.index_put_({m1_11_2_2}, false);
+                  m1_11_2.index_put_({m1_11_2_2}, false);
                 }
               } // end for q
               auto m1_11_2_2nnz = m1_11_2_2.nonzero();
@@ -1078,7 +1086,10 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               if (torch::any(torch::isinf(thq.r)).item<bool>())
               {
                 std::cerr << "thq has infinity" << std::endl;
+                res.index_put_({m1_11_2_2_1}, 2);
                 m1_11_2.index_put_({m1_11_2_2_1}, false); // This effectively ends the loop for these samples
+                m1_11.index_put_({m1_11_2_1}, false);
+                m1.index_put_({m1_11_2_1}, false);
               }
 
               auto m1_11_2_2_1_1 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Newt == 2) & ~m1_11_2_continue & ~m1_continue;

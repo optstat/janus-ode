@@ -531,7 +531,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
     } // end constructor
 
-    int RadauTe::solve()
+    torch::Tensor RadauTe::solve()
     {
       /**
        * Initialize the data structures
@@ -539,6 +539,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
       // Reset the tters
       nout = torch::zeros({M}, torch::kInt64);
       nout3 = torch::zeros({M}, torch::kInt64);
+      auto res = torch::zeros({M}, torch::kFloat64).to(device);
       // Test for the samples that have achieved convergence
       // Declare m1 as a boolean tensor otherwise the assigment fails
       // Have to start with all flags as true so we can enter the loop
@@ -709,7 +710,9 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
           {
             std::cerr << Solver_Name << " Step size too small " << std::endl;
             // TO DO: Modify this so that not all samples are rejected
+            res.index_put_({m1_5}, 1);
             m1.index_put_({m1_5}, false); //This effectively terminates the loop for these samples
+          
           }
           auto m1_6 = m1 & (NbrStg == stage) & ~m1_continue; // Make sure none of the continue or break flags are set
           ExpmNs.index_put_({m1_6}, (NbrStg.index({m1_6}) + 1.0).to(torch::kDouble) / (2.0 * NbrStg.index({m1_6})).to(torch::kDouble));
@@ -904,6 +907,9 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             {
               std::cerr << "thq has infinity" << std::endl;
               m1_11_2.index_put_({m1_11_2_2_1}, false); //This effectively terminates the loop for these samples
+              res.index_put_({m1_11_2_2_1}, 1);
+              m1_11.index_put_({m1_11_2_1}, false);
+              m1.index_put_({m1_11_2_1}, false);
             }
             auto m1_11_2_2_1_1 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Newt == 2) & ~m1_11_2_continue & ~m1_continue;
             Theta.index_put_({m1_11_2_2_1_1}, thq.index({m1_11_2_2_1_1}));
@@ -1224,7 +1230,13 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               if (torch::any(torch::isnan(f0)).item<bool>())
               {
                 std::cerr << "Some components of the ODE are NAN" << std::endl;
-                return 1;
+                res.index_put_({m1_12_1_5}, 2);//Update the mask to reflect the break statement
+                //Remove the samples from the root mask
+                m1.index_put_({m1_12_1_5}, false);
+                //Also update the mask for the current stages
+                m1_12.index_put_({m1_12_1_5}, false);
+                m1_12_1.index_put_({m1_12_1_5}, false);
+                m1_12_1_5.index_put_({m1_12_1_5}, false);
               }
               stats.FcnNbr.index_put_({m1_12_1_5}, stats.FcnNbr.index({m1_12_1_5}) + 1);
 
