@@ -1460,7 +1460,13 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                 if (torch::any(torch::isnan(f0.r)).item<bool>())
                 {
                   std::cerr << "Some components of the ODE are NAN" << std::endl;
-                  return 1;
+                  res.index_put_({m1_12_1_5}, 2);//Update the mask to reflect the break statement
+                  //Remove the samples from the root mask
+                  m1.index_put_({m1_12_1_5}, false);
+                  //Also update the masks for the current stages
+                  m1_12.index_put_({m1_12_1_5}, false);
+                  m1_12_1.index_put_({m1_12_1_5}, false);
+                  m1_12_1_5.index_put_({m1_12_1_5}, false);
                 }
                 stats.FcnNbr.index_put_({m1_12_1_5}, stats.FcnNbr.index({m1_12_1_5}) + 1);
                 // hnew            = PosNeg * min(abs(hnew),abs(hmaxn));
@@ -1596,11 +1602,12 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         if (m2.eq(true_tensor).any().item<bool>())
         {
           std::cerr << "More than MaxNbrStep = " << MaxNbrStep << " steps are needed" << std::endl;
-          return 3;
+          res.index_put_({m2}, 3);
+          m1.index_put_({m2}, false);
         }
       } // end of if OutputFcn
       std::cerr << "Final while count output=" << count << std::endl;
-      return 0;
+      return res;
     } // end of solve
 
     inline void RadauTeD::set_active_stage(int stage)

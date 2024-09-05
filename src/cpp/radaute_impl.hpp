@@ -1327,7 +1327,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         }
       } // end of if OutputFcn
       std::cerr << "Final while count output=" << count << std::endl;
-      return 0;
+      return res;
     } // end of solve
 
     void RadauTe::set_active_stage(int stage)
