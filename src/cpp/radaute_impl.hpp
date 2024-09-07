@@ -1634,7 +1634,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         if (torch::any(torch::isnan(z)).item<bool>())
         {
           std::cerr << "Some components of the solution are NAN" << std::endl;
-          exit(1);
+          mask.index_put_({mask.clone()}, ~mask); //This effectively terminates calculations for these samples
         }
         
           
@@ -1736,7 +1736,8 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             if (torch::any(torch::isnan(z)).item<bool>())
             {
               std::cerr << "Some components of the solution are NAN" << std::endl;
-              exit(1);
+              mask.index_put_({mask.clone()}, ~mask); //This effectively terminates calculations for these samples
+
             }
           }
         }

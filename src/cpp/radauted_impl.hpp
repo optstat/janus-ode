@@ -1917,7 +1917,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             if (torch::any(torch::isnan(z.r)).item<bool>())
             {
               std::cerr << "Some components of the solution are NAN" << std::endl;
-              exit(1);
+              mask.index_put_({mask.clone()}, ~mask); //This effectively terminates calculations for these samples
             }
           }
         }
