@@ -1177,17 +1177,22 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
                 oldnout.index_put_({m1_12_1}, nout.index({m1_12_1}));
                 nout.index_put_({m1_12_1}, nout.index({m1_12_1}) + Refine);
                 elems = m1_12_1.nonzero();
-                S = torch::arange(0, Refine, torch::kFloat64).to(device) / Refine;
-                for (int i = 0; i < elems.size(0); i++)
+                S = torch::arange(0, Refine, torch::kFloat64).to(device) / static_cast<double>(Refine);
+                //Expand the sizes if necessary.  Because of the contiguitiy of the tensor memory, 
+                //all samples must be expanded at once which is not memory efficient
+                if ((nout > tout.size(1)).any().item<bool>())
                 {
-                  ii = torch::arange(oldnout.index({i}).item(), (nout.index({i}) - 1).item(), torch::kInt64).to(device);
-                  tinterp = t.index({i}) + h.index({i}) * S - h.index({i}); // This interpolates to the past
-                  torch::Tensor yinterp = ntrprad(tinterp, t.index({i}), y.index({i}), h.index({i}), C.index({i}), cont.index({i}));
-                  tout.index_put_({i, ii - 1}, tinterp);
-                  yout.index_put_({i, ii - 1}, yinterp.index({Slice(0, Ny)}));
-                  tout.index_put_({i, nout - 1}, t);
-                  yout.index_put_({i, nout - 1}, y);
+                  tout = torch::cat({tout, torch::zeros({M, Refine}, torch::kDouble)}, 1);
+                  yout = torch::cat({yout, torch::zeros({M, Refine, Ny}, torch::kDouble)}, 1);
                 }
+                //For efficiency, we will interpolate all the samples at once
+                ii = torch::arange(oldnout.index({m1_12_1}).item(), (nout.index({m1_12_1}) - 1).item(), torch::kInt64).to(device);
+                tinterp = t.index({m1_12_1}) + h.index({m1_12_1}) * S - h.index({m1_12_1}); // This interpolates to the past
+                torch::Tensor yinterp = ntrprad(tinterp, t.index({m1_12_1}), y.index({m1_12_1}), h.index({m1_12_1}), C.index({m1_12_1}), cont.index({m1_12_1}));
+                tout.index_put_({m1_12_1, ii}, tinterp);
+                yout.index_put_({m1_12_1, ii}, yinterp.index({Slice(0, Ny)}));
+                tout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
+                yout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
                 break;
               case 3: // TODO implement  % Output only at tspan points
                 break;
@@ -1390,39 +1395,36 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
       }
     }
 
-        /**
+    /**
      * %NTRPRAD Interpolation helper function for RADAU.
     %   YINTERP = NTRPRAD(TINTERP,T,Y,TNEW,YNEW,H,F) uses data computed in RADAU
     %   to approximate the solution at time TINTERP.
     %  fprintf('yinterp = ntrprad(tinterp,t,y,tnew,ynew,h,C,cont)\n');
-
     */
     inline torch::Tensor RadauTe::ntrprad(const torch::Tensor &tinterp, const torch::Tensor &t,
                           const torch::Tensor &y, const torch::Tensor &h, const torch::Tensor &C,
                           const torch::Tensor &cont)
     {
-      torch::Tensor yinterp = torch::zeros({y.size(0), tinterp.size(0)}, torch::kFloat64).to(device);
+
+      // Shift the Radau coefficients
       torch::Tensor Cm = C - 1;
-      int NbrStg = C.size(0);
-      torch::Tensor s = (tinterp - t) / h;
-      int m = tinterp.size(0);
-      int Ny = y.size(0);
-      // s      = ((tinterp - t) / h)';
-      s = ((tinterp - t) / h).expand(Ny, m);
-      auto ones = torch::ones({Ny}, torch::kLong); // create a tensor of ones with Ny elements
+      int NbrStg = C.size(0);  // Number of stages in Radau
 
-      auto yi = (s.index({Ny}) - Cm[0]) * cont.index({Slice(), torch::zeros({m}, torch::kLong) + NbrStg});
+      // Compute s as ((tinterp - t) / h), assuming tinterp already has the batch dimension
+      torch::Tensor s = (tinterp - t) / h;  // s will have batch size x number of interp points
 
-      for (int q = 1; q < NbrStg; q++)
-      {
-        yi = (s.index({Ny}) - Cm[q]) *
-             (yi + cont.index({Slice(), torch::zeros({m}, torch::kLong) + NbrStg - q - 1}));
+      // Initialize using outer product of the first Radau stage
+      torch::Tensor yi = torch::einsum("mi, mj->mij", {(s - Cm[0]), cont.index({Slice(), Slice(), NbrStg - 1})});  // cont slice for batch
+
+      // Iterate through the remaining Radau stages
+      for (int q = 1; q < NbrStg; q++) {
+        yi = torch::einsum("mi, mij->mij", {(s - Cm[q]), (yi + cont.index({Slice(), Slice(), NbrStg - q - 1}))});
       }
-      for (int k = 1; k <= m; k++)
-      {
-        yinterp.index_put_({Slice(), k - 1}, yi.index({Slice(), k}) + y);
-      }
-      return yinterp;
+
+      // Add the original solution y to the interpolated results for each time point
+      auto yinterp = yi + y.unsqueeze(2);  // Ensure y is broadcasted along time interpolation points
+
+      return yinterp;  // Return interpolated solution
     } // end of ntrprad
 
 

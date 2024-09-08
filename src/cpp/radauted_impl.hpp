@@ -1677,32 +1677,35 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
     %  fprintf('yinterp = ntrprad(tinterp,t,y,tnew,ynew,h,C,cont)\n');
 
     */
-    inline TensorDual RadauTeD::ntrprad(TensorDual &tinterp, const TensorDual &t,
-                       const TensorDual &y, const TensorDual &h, const torch::Tensor &C,
-                       const TensorMatDual &cont)
+    inline TensorDual RadauTeD::ntrprad(TensorDual &tinterp, 
+                                        const TensorDual &t,
+                                        const TensorDual &y, 
+                                        const TensorDual &h, 
+                                        const torch::Tensor &C,
+                                        const TensorMatDual &cont)
     {
-      TensorDual yinterp = y * 0.0;
-      torch::Tensor Cm = C - 1;
-      int NbrStg = C.size(0);
-      TensorDual s = (tinterp - t) / h;
-      int m = tinterp.r.size(1);
-      // s      = ((tinterp - t) / h)';
-      s = ((tinterp - t) / h);
-      auto ones = torch::ones({Ny}, torch::kLong); // create a tensor of ones with Ny elements
 
-      TensorDual yi = (s.index({Ny}) - Cm.index({0})); // * cont.index({Slice(), torch::zeros({m}, torch::kLong)+NbrStg});//TODO test this
-      auto ccont = cont.clone();
+      // Shift the Radau coefficients
+      torch::Tensor Cm = C - 1;
+      int NbrStg = C.size(0);  // Number of stages in Radau
+
+      // Compute s as ((tinterp - t) / h), assuming tinterp already has the batch dimension
+      TensorDual s = (tinterp - t) / h;  // s will have batch size x number of interp points
+
+      // Initialize yi with the first term
+      TensorMatDual yi = TensorMatDual::einsum("mi, mj->mij", (s - Cm[0]), cont.index({Slice(), Slice(), NbrStg - 1}));  // cont slice for batch
+
+      // Iterate through the remaining Radau stages
       for (int q = 1; q < NbrStg; q++)
       {
-        auto temp = ccont.index({Slice(), NbrStg - q - 1}).squeeze(1);
-        yi = (s.index({Ny}) - Cm.index({q})) *
-             (yi + temp);
+        yi = TensorMatDual::einsum("mi, mj->mij",(s - Cm[q]) , (yi + cont.index({Slice(), Slice(), NbrStg - q - 1})));
       }
-      for (int k = 1; k <= m; k++)
-      {
-        yinterp.index_put_({Slice(), k - 1}, yi.index({Slice(), k}) + y);
-      }
-      return yinterp;
+
+      // Add the original solution y to the interpolated results for each time point
+      TensorMatDual yinterp = yi + y.unsqueeze(2);  // Ensure y is broadcasted along time interpolation points
+
+      return yinterp;  // Return interpolated solution
+
     } // end of ntrprad
 
     // function  [U_Sing,L,U,P] = DecomRC(h,ValP,Mass,Jac,RealYN)
