@@ -1702,9 +1702,9 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
       }
 
       // Add the original solution y to the interpolated results for each time point
-      TensorMatDual yinterp = yi + y.unsqueeze(2);  // Ensure y is broadcasted along time interpolation points
+      TensorMatDual yinterp = yi + y.clone().unsqueeze(2);  // Ensure y is broadcasted along time interpolation points
 
-      return yinterp;  // Return interpolated solution
+      return yinterp.squeeze(2);  // Return interpolated solution
 
     } // end of ntrprad
 

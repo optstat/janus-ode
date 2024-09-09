@@ -1194,8 +1194,8 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
                 tout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
                 yout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
                 break;
-              case 3: // TODO implement  % Output only at tspan points
-                break;
+              //case 3: // TODO implement  % Output only at tspan points
+              //  break;
               } //% end of switch
 
               if (OutputFcn)
@@ -1401,9 +1401,12 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
     %   to approximate the solution at time TINTERP.
     %  fprintf('yinterp = ntrprad(tinterp,t,y,tnew,ynew,h,C,cont)\n');
     */
-    inline torch::Tensor RadauTe::ntrprad(const torch::Tensor &tinterp, const torch::Tensor &t,
-                          const torch::Tensor &y, const torch::Tensor &h, const torch::Tensor &C,
-                          const torch::Tensor &cont)
+    inline torch::Tensor RadauTe::ntrprad(const torch::Tensor &tinterp, 
+                                          const torch::Tensor &t,
+                                          const torch::Tensor &y, 
+                                          const torch::Tensor &h, 
+                                          const torch::Tensor &C,
+                                          const torch::Tensor &cont)
     {
 
       // Shift the Radau coefficients
@@ -1422,7 +1425,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
       }
 
       // Add the original solution y to the interpolated results for each time point
-      auto yinterp = yi + y.unsqueeze(2);  // Ensure y is broadcasted along time interpolation points
+      auto yinterp = yi + y.clone().unsqueeze(2);  // Ensure y is broadcasted along time interpolation points
 
       return yinterp;  // Return interpolated solution
     } // end of ntrprad
