@@ -997,8 +997,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
           // Need a new mask since m1_continue has been potentially updated
           auto m1_12 = m1 & (NbrStg == stage) & ~m1_continue;
 
-          if (m1_12.any().equal(true_tensor))
-          {
 
             // Dyn.Newt_t    = [Dyn.Newt_t;t];
             // auto tt = torch::full({M}, std::numeric_limits<float>::quiet_NaN(), torch::kFloat64).to(device);
@@ -1042,8 +1040,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             auto m1_12_1 = m1 & m1_12 & (err < 1) & ~m1_continue;
 
             //% ------- IS THE ERROR SMALL ENOUGH ?
-            if ((m1_12_1).any().item<bool>())
-            { // ------- STEP IS ACCEPTED
+            // ------- STEP IS ACCEPTED
               First.index_put_({m1_12_1}, false);
 
               auto m1_12_1nnz = m1_12_1.nonzero();
@@ -1080,13 +1077,10 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               auto m1_12_1_1 = m1 & m1_12 & m1_12_1 & Gustafsson & ~ChangeFlag & ~m1_continue;
 
               auto m1_12_1_1_1 = m1 & m1_12 & m1_12_1 & (stats.AccptNbr > 1) & ~m1_continue;
-              if (m1_12_1_1_1.any().equal(true_tensor))
-              {
                 facgus.index_put_({m1_12_1_1_1}, (hacc.index({m1_12_1_1_1}) / h.index({m1_12_1_1_1})) * bpow((err.index({m1_12_1_1_1}).square() / erracc.index({m1_12_1_1_1})), 1.0 / (NbrStg.index({m1_12_1_1_1}) + 1.0)) / Safe);
                 facgus.index_put_({m1_12_1_1_1}, torch::max(FacR, torch::min(FacL, facgus.index({m1_12_1_1_1}))));
                 quot.index_put_({m1_12_1_1_1}, torch::max(quot.index({m1_12_1_1_1}), facgus.index({m1_12_1_1_1})));
                 hnew.index_put_({m1_12_1_1_1}, h.index({m1_12_1_1_1}) / quot.index({m1_12_1_1_1}));
-              }
               hacc.index_put_({m1_12_1_1}, h.index({m1_12_1_1})); // Assignment in libtorch does not make a copy.  It just copies the reference
               erracc.index_put_({m1_12_1_1}, torch::max(p01, err.index({m1_12_1_1})));
 
@@ -1232,6 +1226,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               // Need to check the flag again in case it changed
               auto dyns = OdeFcn(t.index({m1_12_1_5}), y.index({m1_12_1_5}), params);
               f0.index_put_({m1_12_1_5}, dyns);
+              //This should happen rarely so we retain the check
               if (torch::any(torch::isnan(f0)).item<bool>())
               {
                 std::cerr << "Some components of the ODE are NAN" << std::endl;
@@ -1280,7 +1275,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
               NeedNewJac.index_put_({m1_12_1_9}, false);
 
-            } //% end of if m1_12_1_1 ( err < 1)
+
 
             // Else statement if err >=1
             auto m1_12_2 = m1 & m1_12 & (err >= 1) & ~m1_continue;
@@ -1302,7 +1297,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             auto m1_12_2_3 = m1 & m1_12 & m1_12_2 & (stats.AccptNbr >= 1) & ~m1_continue;
             stats.StepRejNbr.index_put_({m1_12_2_3}, stats.StepRejNbr.index({m1_12_2_3}) + 1);
             NeedNewQR.index_put_({m1_12_2}, true);
-          } // End of m1_12 which is the mask for the current stage
 
         } //% end of stages
 
@@ -1541,8 +1535,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         // We loop through the stages and perform the QR decomposition
         // if the stage is present in the masked sample
         auto m = mask & (stage > 1);
-        if (m.any().item<bool>())
-        {
           // keep track of the sample indices
           auto indxs = (torch::nonzero(m)).view({-1});
           for (int q = 1; q <= ((stage - 1) / 2); q++)
@@ -1577,13 +1569,10 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               R.index_put_({indxs, q1 - 1}, qrs.r);
             }
           }
-        }
       }
       else //% Complex case
       {
         auto m = mask & (NbrStg == stage);
-        if (m.any().item<bool>())
-        {
           set_active_stage(stage);
           torch::Tensor valp = ValP.clone();
           valp.index_put_({m}, ValP.index({m}) / h.index({m}));
@@ -1601,7 +1590,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               R.index_put_({indx, q}, qr.r);
             }
           }
-        }
       }
     } // end of DecomRC
     
@@ -1752,8 +1740,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         for (int q = 1; q <= stage; q++)
         {
           auto m1 = mask & (stage == NbrStg) & (q <= NbrStg);
-          if (m1.any().item<bool>())
-          {
             auto nzindxs = m1.nonzero();
             if (nzindxs.numel() == 0)
               continue;
@@ -1766,7 +1752,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             auto sol = QRTeC::solvev(QT.index({m1, q - 1}), R.index({m1, q - 1}), qrin);
             // auto sol = qrs[q - 1].solvev(qrin);
             z.index_put_({nzindxs, Slice(), q - 1}, sol);
-          }
         }
       }
     } // end of Solvrad
@@ -1779,8 +1764,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
       torch::Tensor SqrtNy = torch::sqrt(torch::tensor(y.size(1), torch::kFloat64).to(device));
       // Here the Dds have to be accumulated by stage since each sample may be at a different stage
       auto m1 = mask;
-      if (m1.any().item<bool>())
-      {
         auto Ddoh = torch::einsum("s,m->ms", {Dd, h.index({m1}).reciprocal()}); //   Dd/h
         auto temp = torch::einsum("mns,ms->mn", {z.index({m1}), Ddoh});         // z*Dd/h
 
@@ -1817,7 +1800,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
           // For torch::max the broadcasting is automatic
           err.index_put_({m1_1}, torch::max((err.index({m1_1}) / SqrtNy), oneEmten));
         }
-      }
     } // end of Estrad
 
     inline std::tuple<torch::Tensor, torch::Tensor>
