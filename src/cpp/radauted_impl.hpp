@@ -820,9 +820,9 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             auto scal_slice = Slice(start, end);
             Scal.index_put_({m1_7, scal_slice}, Scal.index({m1_7, scal_slice}) / hhfac.index({m1_7}));
           auto m1_8 = m1 & (NbrStg == stage) & (NbrInd2 > 0) & ~m1_continue;
-            int start = m1_8.any().item<bool>() ? NbrInd1.index({m1_8}).item<int>() + NbrInd2.index({m1_8}).item<int>() : 1;
-            int end = m1_8.any().item<bool>() ? NbrInd1.index({m1_8}).item<int>() + NbrInd2.index({m1_8}).item<int>() : 0;
-            auto scal_slice = Slice(start, end);
+            start = m1_8.any().item<bool>() ? NbrInd1.index({m1_8}).item<int>() + NbrInd2.index({m1_8}).item<int>() : 1;
+            end = m1_8.any().item<bool>() ? NbrInd1.index({m1_8}).item<int>() + NbrInd2.index({m1_8}).item<int>() : 0;
+            scal_slice = Slice(start, end);
             Scal.index_put_(
                 {m1_8, scal_slice},
                 Scal.index({m1_8, scal_slice}) /
