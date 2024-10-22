@@ -725,10 +725,10 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           Scal.index_put_({m1_2_6_1, scal_slice}, Scal.index({m1_2_6_1, scal_slice}) /
                                                   hhfac.index({m1_2_6_1}));
         auto m1_2_6_2 = m1 & m1_2 & m1_2_6 & (NbrInd3 > 0) & ~m1_continue;
-          int start = m1_2_6_2.any().item<bool>() ? NbrInd1.index({m1_2_6_2}).item<int>() : 1;
-          int end = m1_2_6_2.any().item<bool>() ? NbrInd1.index({m1_2_6_2}).item<int>() : 0;
+          start = m1_2_6_2.any().item<bool>() ? NbrInd1.index({m1_2_6_2}).item<int>() : 1;
+          end = m1_2_6_2.any().item<bool>() ? NbrInd1.index({m1_2_6_2}).item<int>() : 0;
 
-          auto scal_slice = Slice(start, end);
+          scal_slice = Slice(start, end);
 
           Scal.index_put_(
               {m1_2_6_2, scal_slice},
@@ -895,7 +895,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             // ------- BLOCK FOR THE SIMPLIFIED NEWTON ITERATION
             // FNewt    = max(10*eps/min(RelTol1),min(0.03,min(RelTol1)^(1/ExpmNs-1)));
             auto RelTol1min = RelTol1.index({m1_11}).min();
-            auto ExpmNsd = TensorDual::einsum("mi, m->mi", TensorDual::ones_like(RelTol1min), ExpmNs.index({m1_11}));
+            ExpmNsd = TensorDual::einsum("mi, m->mi", TensorDual::ones_like(RelTol1min), ExpmNs.index({m1_11}));
             auto tolpow = bpow(RelTol1min, (ExpmNsd.reciprocal() - 1.0));
 
             auto epsd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(RelTol1min),eps);
@@ -1213,8 +1213,8 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                   auto NbrStgd = TensorDual::einsum("mi,m->mi", TensorDual::ones_like(err.index({m1_12_1_1_1})) , NbrStg.index({m1_12_1_1_1}));
                   facgus.index_put_({m1_12_1_1_1}, (hacc.index({m1_12_1_1_1}) / h.index({m1_12_1_1_1})) * 
                                                    bpow((err.index({m1_12_1_1_1}).square() / erracc.index({m1_12_1_1_1})), (NbrStgd + 1.0).reciprocal()) / Safed);
-                  auto FacRd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(facgus.index({m1_12_1_1_1})), FacR);
-                  auto FacLd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(facgus.index({m1_12_1_1_1})), FacL);
+                  FacRd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(facgus.index({m1_12_1_1_1})), FacR);
+                  FacLd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(facgus.index({m1_12_1_1_1})), FacL);
                   facgus.index_put_({m1_12_1_1_1}, max(FacRd, min(FacLd, facgus.index({m1_12_1_1_1}))));
                   quot.index_put_({m1_12_1_1_1}, max(quot.index({m1_12_1_1_1}), facgus.index({m1_12_1_1_1})));
                   hnew.index_put_({m1_12_1_1_1}, h.index({m1_12_1_1_1}) / quot.index({m1_12_1_1_1}));
@@ -1238,8 +1238,8 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                                     hhfac.index({m1_12_1_2}));
               
               auto m1_12_1_3 = m1 & m1_12 & m1_12_1 & (NbrInd3 > 0) & ~m1_continue;
-                int start = m1_12_1_3.any().item<bool>() ? NbrInd1.index({m1_12_1_3}).item<int>() : 0;
-                int end = m1_12_1_3.any().item<bool>() ? NbrInd1.index({m1_12_1_3}).item<int>() + NbrInd3.index({m1_12_1_3}).item<int>() : 0;
+                start = m1_12_1_3.any().item<bool>() ? NbrInd1.index({m1_12_1_3}).item<int>() : 0;
+                end = m1_12_1_3.any().item<bool>() ? NbrInd1.index({m1_12_1_3}).item<int>() + NbrInd3.index({m1_12_1_3}).item<int>() : 0;
                 Scal.index_put_({m1_12_1_3, Slice(start, end)},
                                 Scal.index({m1_12_1_3, Slice(start, end)}) /
                                     hhfac.index({m1_12_1_3}));
@@ -1886,7 +1886,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
           err.index_put_({m1_1}, (errv_out / Scal.index({m1_1})).normL2());
           // For torch::max the broadcasting is automatic
-          auto SqrtNyd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(err.index({m1_1})) , SqrtNy);
+          SqrtNyd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(err.index({m1_1})) , SqrtNy);
           err.index_put_({m1_1}, max((err.index({m1_1}) / SqrtNyd), oneEmten));
         
       }
