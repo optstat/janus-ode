@@ -19,8 +19,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 # Link GTest and Python
 # Link libraries
 # Instead of ${GTEST_LIBRARIES} and ${GTEST_MAIN_LIBRARIES}, use GTest::GTest and GTest::Main
-target_link_libraries(odetest PRIVATE GTest::GTest GTest::Main "${TORCH_LIBRARIES}" Python3::Python Python3::NumPy)
-
+target_link_libraries(odetest PRIVATE ${GTEST_BOTH_LIBRARIES} "${TORCH_LIBRARIES}" Python3::Python Python3::NumPy pthread)
 set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
 
 # Set debug flags if CMAKE_BUILD_TYPE is Debug
