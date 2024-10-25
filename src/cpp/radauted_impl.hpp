@@ -661,7 +661,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         // The jacobian is simply the dual part of the dynamics!
         Jac = ydotd.d.clone();
         std::cerr << "ydotd=" << ydotd << std::endl;*/
-        //if (m1_1.eq(true_tensor).any().item<bool>())
+        if (m1_1.eq(true_tensor).any().item<bool>())
         {
           auto jac = JacFcn(t.index({m1_1}), y.index({m1_1}), params);
 
@@ -684,7 +684,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         }
         // Allocate the memory for the QT and R tensors
         auto m1_2 = m1 & ~Keep & Variab & ~m1_continue;
-        //if (m1_2.eq(true_tensor).any().item<bool>())
+        if (m1_2.eq(true_tensor).any().item<bool>())
         {
           ChangeNbr.index_put_({m1_2}, ChangeNbr.index({m1_2}) + 1);
           NbrStgNew.index_put_({m1_2}, NbrStg.index({m1_2}));
@@ -695,23 +695,23 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         }
         auto m1_2_1 = m1 & m1_2 & (Newt > 1) & (Thetat <= Vitu) & (hquot < hhou) & (hquot > hhod) & ~m1_continue;
 
-        //if (m1_2_1.eq(true_tensor).any().item<bool>())
+        if (m1_2_1.eq(true_tensor).any().item<bool>())
           NbrStgNew.index_put_({m1_2_1}, torch::min(MaxNbrStg.index({m1_2_1}), NbrStg.index({m1_2_1}) + 2));
         auto m1_2_2 = m1 & m1_2 & (Thetat >= Vitd) | (UnExpStepRej) & ~m1_continue;
-        //if (m1_2_2.eq(true_tensor).any().item<bool>())
+        if (m1_2_2.eq(true_tensor).any().item<bool>())
           NbrStgNew.index_put_({m1_2_2}, torch::max(MinNbrStg.index({m1_2_2}), NbrStg.index({m1_2_2}) - 2));
         auto m1_2_3 = m1 & m1_2 & (ChangeNbr >= 1) & UnExpNewtRej & ~m1_continue;
-        //if (m1_2_3.eq(true_tensor).any().item<bool>())
+        if (m1_2_3.eq(true_tensor).any().item<bool>())
           NbrStgNew.index_put_({m1_2_3}, torch::max(MinNbrStg.index({m1_2_3}), NbrStg.index({m1_2_3}) - 2));
         auto m1_2_4 = m1 & m1_2 & (ChangeNbr <= 10) & ~m1_continue;
-        //if (m1_2_4.eq(true_tensor).any().item<bool>())
+        if (m1_2_4.eq(true_tensor).any().item<bool>())
           NbrStgNew.index_put_({m1_2_4}, torch::min(NbrStg.index({m1_2_4}), NbrStgNew.index({m1_2_4})));
         auto m1_2_5 = m1 & m1_2 & (NbrStg != NbrStgNew) & ~m1_continue;
         ChangeFlag.index_put_({m1_2}, m1_2_5.index({m1_2}));
         UnExpNewtRej.index_put_({m1 & m1_2 & ~m1_continue}, false);
         UnExpStepRej.index_put_({m1 & m1_2 & ~m1_continue}, false);
         auto m1_2_6 = m1 & m1_2 & ChangeFlag & ~m1_continue;
-        //if (m1_2_6.eq(true_tensor).any().item<bool>())
+        if (m1_2_6.eq(true_tensor).any().item<bool>())
         {
           NbrStg.index_put_({m1_2_6}, NbrStgNew.index({m1_2_6}));
           // we need to resize f
@@ -728,7 +728,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                                     y.index({m1_2_6}).abs());
         }
         auto m1_2_6_1 = m1 & m1_2 & m1_2_6 & (NbrInd2 > 0) & ~m1_continue;
-        //if (m1_2_6_1.eq(true_tensor).any().item<bool>())
+        if (m1_2_6_1.eq(true_tensor).any().item<bool>())
         {
           int start = m1_2_6_1.any().item<bool>() ? NbrInd1.index({m1_2_6_1}).item<int>() : 1;
           int end = m1_2_6_1.any().item<bool>() ? NbrInd1.index({m1_2_6_1}).item<int>() : 0;
@@ -737,7 +737,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                                                   hhfac.index({m1_2_6_1}));
         }
         auto m1_2_6_2 = m1 & m1_2 & m1_2_6 & (NbrInd3 > 0) & ~m1_continue;
-        //if (m1_2_6_2.eq(true_tensor).any().item<bool>())
+        if (m1_2_6_2.eq(true_tensor).any().item<bool>())
         {
           int start = m1_2_6_2.any().item<bool>() ? NbrInd1.index({m1_2_6_2}).item<int>() : 1;
           int end = m1_2_6_2.any().item<bool>() ? NbrInd1.index({m1_2_6_2}).item<int>() : 0;
@@ -787,7 +787,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           //-------
           // Allocate enough memory just for the number of samples
           torch::Tensor m1_3 = m1 & NeedNewQR & (stage == NbrStg) & ~m1_continue;
-          //if (m1_3.eq(true_tensor).any().item<bool>())
+          if (m1_3.eq(true_tensor).any().item<bool>())
           {
             DecomRC(m1_3, stage); // Decompose the matrices
             auto m1_3nnz = m1_3.nonzero();
@@ -801,7 +801,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           }
           // See if any samples are singular
           auto m1_3_1 = m1 & m1_3 & (U_Sing > 0);
-          //if (m1_3_1.eq(true_tensor).any().item<bool>())
+          if (m1_3_1.eq(true_tensor).any().item<bool>())
           {
             UnExpStepRej.index_put_({m1_3_1}, torch::tensor(true));
             N_Sing.index_put_({m1_3_1}, N_Sing.index({m1_3_1}) + 1);
@@ -817,19 +817,18 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             m1_continue.index_put_({m1_3_1}, torch::tensor(true)); // This filters all samples that have reached this path
           }
           auto m1_4 = m1 & (NbrStg == stage) & Variab & Keep & ~m1_continue;
-          //if (m1_4.eq(true_tensor).any().item<bool>())
+          if (m1_4.eq(true_tensor).any().item<bool>())
           {
             Keep.index_put_({m1_4}, false);
             ChangeNbr.index_put_({m1_4}, ChangeNbr.index({m1_4}) + 1);
           }
           auto m1_4_1 = m1_4 & (ChangeNbr >= 10) & (NbrStg < MaxNbrStg);
-          //if (m1_4_1.eq(true_tensor).any().item<bool>())
+          if (m1_4_1.eq(true_tensor).any().item<bool>())
           {
             NeedNewJac.index_put_({m1_4_1}, false);
             NeedNewQR.index_put_({m1_4_1}, false);
           }
           auto m1_5 = m1 & (NbrStg == stage) & (0.1 * h.abs() <= TensorDual::einsum("mi,->mi",t.abs() , eps)) & ~m1_continue;
-          
           if (m1_5.eq(true_tensor).any().item<bool>())
           {
             std::cerr << Solver_Name << "Warning: Step size too small " << std::endl;
@@ -838,7 +837,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             m1.index_put_({m1_5}, false); //This effectively ends the loop for these samples
           }
           auto m1_6 = m1 & (NbrStg == stage) & ~m1_continue; // Make sure none of the continue or break flags are set
-          //if (m1_6.eq(true_tensor).any().item<bool>())
+          if (m1_6.eq(true_tensor).any().item<bool>())
           {
             ExpmNs.index_put_({m1_6}, (NbrStg.index({m1_6}) + 1.0).to(torch::kDouble) / (2.0 * NbrStg.index({m1_6})).to(torch::kDouble));
             QuotTol.index_put_({m1_6}, AbsTol.index({m1_6}) / RelTol.index({m1_6}));
@@ -848,7 +847,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             Scal.index_put_({m1_6}, AbsTol1.index({m1_6}) + RelTol1.index({m1_6}) * y.index({m1_6}).abs());
           }
           auto m1_7 = m1 & (NbrStg == stage) & (NbrInd2 > 0) & ~m1_continue;
-          //if (m1_7.eq(true_tensor).any().item<bool>())
+          if (m1_7.eq(true_tensor).any().item<bool>())
           {
             int start = m1_7.any().item<bool>() ? NbrInd1.index({m1_7}).item<int>() + NbrInd2.index({m1_7}).item<int>() : 1;
             int end = m1_7.any().item<bool>() ? NbrInd1.index({m1_7}).item<int>() + NbrInd2.index({m1_7}).item<int>() : 0;
@@ -856,7 +855,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             Scal.index_put_({m1_7, scal_slice}, Scal.index({m1_7, scal_slice}) / hhfac.index({m1_7}));
           }
           auto m1_8 = m1 & (NbrStg == stage) & (NbrInd2 > 0) & ~m1_continue;
-          //if (m1_8.eq(true_tensor).any().item<bool>())
+          if (m1_8.eq(true_tensor).any().item<bool>())
           {
             int start = m1_8.any().item<bool>() ? NbrInd1.index({m1_8}).item<int>() + NbrInd2.index({m1_8}).item<int>() : 1;
             int end = m1_8.any().item<bool>() ? NbrInd1.index({m1_8}).item<int>() + NbrInd2.index({m1_8}).item<int>() : 0;
@@ -869,7 +868,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           auto m1_9 = m1 & (NbrStg == stage) & (First | Start_Newt | ChangeFlag) & ~m1_continue;
 
           auto m1_9_1 = m1 & (stage == 1) & (NbrStg == stage) & (First | Start_Newt | ChangeFlag) & ~m1_continue;
-          //if (m1_9_1.eq(true_tensor).any().item<bool>())
+          if (m1_9_1.eq(true_tensor).any().item<bool>())
           {
             z1.index_put_({m1_9_1}, 0.0);
             w1.index_put_({m1_9_1}, 0.0);
@@ -877,7 +876,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             f1.index_put_({m1_9_1}, 0.0);
           }
           auto m1_9_2 = m1 & (stage == 3) & (NbrStg == stage) & (First | Start_Newt | ChangeFlag) & ~m1_continue;
-          //if (m1_9_2.eq(true_tensor).any().item<bool>())
+          if (m1_9_2.eq(true_tensor).any().item<bool>())
           {
             z3.index_put_({m1_9_2}, 0.0);
             w3.index_put_({m1_9_2}, 0.0);
@@ -886,7 +885,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           }
 
           auto m1_9_3 = m1 & (stage == 5) & (NbrStg == stage) & (First | Start_Newt | ChangeFlag) & ~m1_continue;
-          //if (m1_9_3.eq(true_tensor).any().item<bool>())
+          if (m1_9_3.eq(true_tensor).any().item<bool>())
           {
             z5.index_put_({m1_9_3}, 0.0);
             w5.index_put_({m1_9_3}, 0.0);
@@ -894,7 +893,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             f5.index_put_({m1_9_3}, 0.0);
           }
           auto m1_9_4 = m1 & (stage == 7) & (NbrStg == stage) & (First | Start_Newt | ChangeFlag) & ~m1_continue;
-          //if (m1_9_4.eq(true_tensor).any().item<bool>())
+          if (m1_9_4.eq(true_tensor).any().item<bool>())
           {
             z7.index_put_({m1_9_4}, 0.0);
             w7.index_put_({m1_9_4}, 0.0);
@@ -905,7 +904,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           auto m1_10 = m1 & (NbrStg == stage) & ~(First | Start_Newt | ChangeFlag) & ~m1_continue; // This mask means the variables are already defined
           // Variables already defined.  Use interpolation method to estimate the values for faster convergence.
           // See (8.5) in section IV.8 in vol 2 of the book by Hairer, Norsett and Wanner
-          //if (m1_10.eq(true_tensor).any().item<bool>())
+          if (m1_10.eq(true_tensor).any().item<bool>())
           {
             // This is the first step in the stage
             // We need to compute the coefficients for the interpolation
@@ -945,7 +944,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           }
 
           auto m1_11 = m1 & (NbrStg == stage) & ~m1_continue;
-          //if (m1_11.eq(true_tensor).any().item<bool>())
+          if (m1_11.eq(true_tensor).any().item<bool>())
           {
             // ------- BLOCK FOR THE SIMPLIFIED NEWTON ITERATION
             // FNewt    = max(10*eps/min(RelTol1),min(0.03,min(RelTol1)^(1/ExpmNs-1)));
@@ -958,9 +957,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             FNewt.index_put_({m1_11}, max(10.0 * epsd / RelTol1min, min(p03d, tolpow)));
 
             auto m1_11_1 = m1 & m1_11 & (NbrStg == 1) & ~m1_continue;
-            // This if statement is necessary to avoid a runtime error
-            // Do not comment out
-            if (m1_11_1.eq(true_tensor).any().item<bool>()) 
+            if (m1_11_1.eq(true_tensor).any().item<bool>()) // This if statement is necessary to avoid a runtime error
             {
               auto RelTol1min = RelTol1.index({m1_11_1}).min();
               auto epsd = TensorDual::einsum("mi, j->mi",TensorDual::ones_like(RelTol1min), eps);
@@ -997,7 +994,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             Reject.index_put_({m1_11_2}, false);
             Newt.index_put_({m1_11_2}, Newt.index({m1_11_2}) + 1);
             auto m1_11_2_1 = m1 & m1_11_2 & (Newt > Nit) & ~m1_continue & ~m1_11_2_continue;
-            //if (m1_11_2_1.eq(true_tensor).any().item<bool>())
+            if (m1_11_2_1.eq(true_tensor).any().item<bool>())
             {
               UnExpStepRej.index_put_({m1_11_2_1}, true);
               auto m1_11_2_1nnz = m1_11_2_1.nonzero();
@@ -1022,7 +1019,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             // until the end of the while loop
 
             auto m1_11_2_2 = m1_11_2 & ~m1_11_2_continue;
-            //if (m1_11_2_2.eq(true_tensor).any().item<bool>())
+            if (m1_11_2_2.eq(true_tensor).any().item<bool>())
             {
               // % ------ COMPUTE THE RIGHT HAND SIDE
               for (int q = 1; q <= stage; q++)
@@ -1082,7 +1079,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             }
             //------- TEST FOR BAD CONVERGENCE OR NUMBER OF NEEDED ITERATIONS TOO LARGE
             auto m1_11_2_2_1 = m1 & m1_11_2 & m1_11_2_2 & (Newt > 1) & (Newt < Nit) & ~m1_11_2_continue & ~m1_continue;
-            //if (m1_11_2_2_1.eq(true_tensor).any().item<bool>())
+            if (m1_11_2_2_1.eq(true_tensor).any().item<bool>())
             {
               thq.index_put_({m1_11_2_2_1}, NewNrm.index({m1_11_2_2_1}) / OldNrm.index({m1_11_2_2_1}));
               // Check thq for infinity
@@ -1096,14 +1093,14 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               }
 
               auto m1_11_2_2_1_1 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Newt == 2) & ~m1_11_2_continue & ~m1_continue;
-              //if (m1_11_2_2_1_1.eq(true_tensor).any().item<bool>())
+              if (m1_11_2_2_1_1.eq(true_tensor).any().item<bool>())
                 Theta.index_put_({m1_11_2_2_1_1}, thq.index({m1_11_2_2_1_1}));
               auto m1_11_2_2_1_2 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Newt != 2) & ~m1_11_2_continue & ~m1_continue; // Else for Newt == 2
-              //if (m1_11_2_2_1_2.eq(true_tensor).any().item<bool>())
+              if (m1_11_2_2_1_2.eq(true_tensor).any().item<bool>())
                 Theta.index_put_({m1_11_2_2_1_2}, (thq.index({m1_11_2_2_1_2}) * thqold.index({m1_11_2_2_1_2})).sqrt());
               thqold.index_put_({m1_11_2_2_1}, thq.index({m1_11_2_2_1}));
               auto m1_11_2_2_1_3 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Theta < 0.99) & ~m1_11_2_continue & ~m1_continue;
-              //if (m1_11_2_2_1_3.eq(true_tensor).any().item<bool>())
+              if (m1_11_2_2_1_3.eq(true_tensor).any().item<bool>())
               {
                 FacConv.index_put_({m1_11_2_2_1_3}, Theta.index({m1_11_2_2_1_3}) / (one - Theta.index({m1_11_2_2_1_3})));
                 auto Nitd = TensorDual::einsum("mi,j->mi",TensorDual::ones_like(Theta.index({m1_11_2_2_1_3})), Nit);
@@ -1115,7 +1112,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               }
               auto m1_11_2_2_1_3_1 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & m1_11_2_2_1_3 & (dyth >= 1) & ~m1_11_2_continue & ~m1_continue;
               //% We can not  expect convergence after Nit steps.
-              //if (m1_11_2_2_1_3_1.eq(true_tensor).any().item<bool>())
+              if (m1_11_2_2_1_3_1.eq(true_tensor).any().item<bool>())
               {
                 auto twentyd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(dyth.index({m1_11_2_2_1_3_1})) , twenty);
                 auto dythmin = min(twentyd, dyth.index({m1_11_2_2_1_3_1}));
@@ -1141,7 +1138,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                 m1_11_2.index_put_({m1_11_2_2_1_3_1}, false);
               }
               auto m1_11_2_2_1_4 = m1 & m1_11_2 & m1_11_2_2 & m1_11_2_2_1 & (Theta >= 0.99) & ~m1_11_2_continue & ~m1_continue; // Else for  Theta < 0.99
-              //if (m1_11_2_2_1_4.eq(true_tensor).any().item<bool>())
+              if (m1_11_2_2_1_4.eq(true_tensor).any().item<bool>())
               {
                 h.index_put_({m1_11_2_2_1_4}, h.index({m1_11_2_2_1_4}) * 0.5);
                 hhfac.index_put_({m1_11_2_2_1_4}, torch::tensor(0.5, torch::kFloat64).to(device));
@@ -1159,12 +1156,12 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                 m1_11_2.index_put_({m1_11_2_2_1_4}, false);
               }
               auto m1_11_2_2_1_5 = m1 & m1_11_2 & NeedNewQR & ~m1_11_2_continue & ~m1_continue;
-              //if (m1_11_2_2_1_5.eq(true_tensor).any().equal(true_tensor))
+              if (m1_11_2_2_1_5.eq(true_tensor).any().equal(true_tensor))
                 m1_11_2_continue.index_put_({m1_11_2_2_1_5}, true);
             } // end of if statement for m1_11_2_1
 
             auto m1_11_2_3 = m1 & m1_11_2 & ~m1_11_2_continue & ~m1_continue;
-            //if (m1_11_2_3.eq(true_tensor).any().item<bool>())
+            if (m1_11_2_3.eq(true_tensor).any().item<bool>())
             {
               OldNrm.index_put_({m1_11_2_3}, max(NewNrm.index({m1_11_2_3}), eps));
               w.index_put_({m1_11_2_3}, w.index({m1_11_2_3}) + z.index({m1_11_2_3})); // In place addition
@@ -1182,7 +1179,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
             auto m1_11_2_4 = m1 & m1_11_2 & (FacConv * NewNrm > FNewt) & ~m1_11_2_continue & ~m1_continue; // This means to continue the loop
 
-            //if (m1_11_2_4.eq(true_tensor).any().item<bool>())
+            if (m1_11_2_4.eq(true_tensor).any().item<bool>())
               m1_11_2_continue.index_put_({m1_11_2_4}, true);
 
             // If we made it this far then this means that we are done and we break out of the loop
@@ -1253,7 +1250,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             auto m1_12_1 = m1 & m1_12 & (err < 1) & ~m1_continue;
 
             //% ------- IS THE ERROR SMALL ENOUGH ?
-            //if ((m1_12_1).eq(true_tensor).any().item<bool>())
+            if ((m1_12_1).eq(true_tensor).any().item<bool>())
             { // ------- STEP IS ACCEPTED
               First.index_put_({m1_12_1}, false);
               auto m1_12_1nnz = m1_12_1.nonzero();
@@ -1286,10 +1283,10 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
               // ------- PREDICTIVE CONTROLLER OF GUSTAFSSON
               auto m1_12_1_1 = m1 & m1_12 & m1_12_1 & Gustafsson & ~ChangeFlag & ~m1_continue;
-              //if (m1_12_1_1.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_1.eq(true_tensor).any().item<bool>())
               {
                 auto m1_12_1_1_1 = m1 & m1_12 & m1_12_1 & (stats.AccptNbr > 1) & ~m1_continue;
-                //if (m1_12_1_1_1.eq(true_tensor).any().item<bool>())
+                if (m1_12_1_1_1.eq(true_tensor).any().item<bool>())
                 {
                   auto Safed = TensorDual::einsum("mi,->mi", TensorDual::ones_like(err.index({m1_12_1_1_1})), Safe);
                   auto NbrStgd = TensorDual::einsum("mi,m->mi", TensorDual::ones_like(err.index({m1_12_1_1_1})) , NbrStg.index({m1_12_1_1_1}));
@@ -1313,7 +1310,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
               // Check if all Scal values are the same
               auto m1_12_1_2 = m1 & m1_12 & m1_12_1 & (NbrInd2 > 0) & ~m1_continue;
-              //if (m1_12_1_2.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_2.eq(true_tensor).any().item<bool>())
               {
                 int start = m1_12_1_2.any().item<bool>() ? NbrInd1.index({m1_12_1_2}).item<int>() : 0;
                 int end = m1_12_1_2.any().item<bool>() ? NbrInd1.index({m1_12_1_2}).item<int>() + NbrInd2.index({m1_12_1_2}).item<int>() : 0;
@@ -1322,7 +1319,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                                     hhfac.index({m1_12_1_2}));
               }
               auto m1_12_1_3 = m1 & m1_12 & m1_12_1 & (NbrInd3 > 0) & ~m1_continue;
-              //if (m1_12_1_3.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_3.eq(true_tensor).any().item<bool>())
               {
                 int start = m1_12_1_3.any().item<bool>() ? NbrInd1.index({m1_12_1_3}).item<int>() : 0;
                 int end = m1_12_1_3.any().item<bool>() ? NbrInd1.index({m1_12_1_3}).item<int>() + NbrInd3.index({m1_12_1_3}).item<int>() : 0;
@@ -1446,7 +1443,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
               NeedNewJac.index_put_({m1_12_1}, true); //% Line 1613
               auto m1_12_1_4 = m1 & m1_12_1 & (Last) & ~m1_continue;
-              //if (m1_12_1_4.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_4.eq(true_tensor).any().item<bool>())
               {
                 h.index_put_({m1_12_1_4}, hopt.index({m1_12_1_4}));
                 stats.StepRejNbr.index_put_({m1_12_1_4}, stats.StepRejNbr.index({m1_12_1_4}) + 1);
@@ -1455,7 +1452,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               }
               // We have introduced a break statement.  We need to refilter the root mask
               auto m1_12_1_5 = m1 & m1_12_1 & (~Last) & ~m1_continue;
-              //if (m1_12_1_5.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_5.eq(true_tensor).any().item<bool>())
               {
                 // Need to check the flag again in case it changed
                 auto dyns = OdeFcn(t.index({m1_12_1_5}), y.index({m1_12_1_5}), params);
@@ -1483,7 +1480,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                     TensorDual::einsum("mi,mi->mi", PosNeg.index({m1_12_1_5}) , min((h.index({m1_12_1_5})).abs(), (hnew.index({m1_12_1_5})).abs())));
               }
               auto m1_12_1_6 = m1 & m1_12 & m1_12_1 & Reject & ~m1_continue;
-              //if (m1_12_1_6.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_6.eq(true_tensor).any().item<bool>())
               {
                 hnew.index_put_({m1_12_1_6}, 
                      TensorDual::einsum("mi,mi->mi",PosNeg.index({m1_12_1_6}) , min((hnew.index({m1_12_1_6})).abs(), (h.index({m1_12_1_6})).abs())));
@@ -1495,19 +1492,19 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               auto thoquot=(t.index({m1_12_1}) + hnew.index({m1_12_1}) / Quot1d - tfinal.index({m1_12_1}));
               lastmask.index_put_({m1_12_1}, ( TensorDual::einsum("mi,mi->mi", thoquot, PosNeg.index({m1_12_1})) >= 0.0));
               auto m1_12_1_7 = m1 & m1_12 & lastmask & ~m1_continue;
-              //if (m1_12_1_7.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_7.eq(true_tensor).any().item<bool>())
               {
                 h.index_put_({m1_12_1_7}, tfinal.index({m1_12_1_7}) - t.index({m1_12_1_7}));
                 Last.index_put_({m1_12_1_7}, true);
               }
               auto m1_12_1_8 = m1 & m1_12 & m1_12_1 & ~lastmask & ~m1_continue;
-              //if (m1_12_1_8.eq(true_tensor).any().item<bool>())
+              if (m1_12_1_8.eq(true_tensor).any().item<bool>())
               {
                 qt.index_put_({m1_12_1_8}, hnew.index({m1_12_1_8}) / h.index({m1_12_1_8})); // (8.21)
                 hhfac.index_put_({m1_12_1_8}, h.index({m1_12_1_8}));
                 auto thetamask = (Theta <= Thet) & (qt >= Quot1) & (qt <= Quot2);
                 auto m1_12_1_8_1 = m1 & m1_12 & m1_12_1 & m1_12_1_1 & m1_12_1_8 & thetamask & ~m1_continue;
-                //if (m1_12_1_8_1.eq(true_tensor).any().item<bool>())
+                if (m1_12_1_8_1.eq(true_tensor).any().item<bool>())
                 {
                   Keep.index_put_({m1_12_1_8_1}, true);
                   NeedNewJac.index_put_({m1_12_1_8_1}, false);
@@ -1531,7 +1528,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             // Else statement if err >=1
             auto m1_12_2 = m1 & m1_12 & (err >= 1) & ~m1_continue;
             //%  --- STEP IS REJECTED
-            //if (m1_12_2.eq(true_tensor).any().item<bool>())
+            if (m1_12_2.eq(true_tensor).any().item<bool>())
             {
               // Dyn.hreject_t    = [Dyn.hreject_t;t];
               // auto tt = torch::full({M}, std::numeric_limits<float>::quiet_NaN(), torch::kFloat64).to(device);
@@ -1558,20 +1555,20 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               Reject.index_put_({m1_12_2}, true);
               Last.index_put_({m1_12_2}, false);
               auto m1_12_2_1 = m1 & m1_12 & (First) & ~m1_continue;
-              //if (m1_12_2_1.eq(true_tensor).any().item<bool>())
+              if (m1_12_2_1.eq(true_tensor).any().item<bool>())
               {
                 auto tend = TensorDual::einsum("mi,->mi", TensorDual::ones_like(h.index({m1_12_2_1})), ten);
                 h.index_put_({m1_12_2_1}, h.index({m1_12_2_1})/tend);
                 hhfac.index_put_({m1_12_2_1}, 0.1);
               }
               auto m1_12_2_2 = m1 & m1_12 & m1_12_2 & (~First) & ~m1_continue;
-              //if (m1_12_2_2.eq(true_tensor).any().item<bool>())
+              if (m1_12_2_2.eq(true_tensor).any().item<bool>())
               {
                 hhfac.index_put_({m1_12_2_2}, hnew.index({m1_12_2_2}) / h.index({m1_12_2_2}));
                 h.index_put_({m1_12_2_2}, hnew.index({m1_12_2_2}));
               }
               auto m1_12_2_3 = m1 & m1_12 & m1_12_2 & (stats.AccptNbr >= 1) & ~m1_continue;
-              //if (m1_12_2_3.eq(true_tensor).any().item<bool>())
+              if (m1_12_2_3.eq(true_tensor).any().item<bool>())
               {
                 stats.StepRejNbr.index_put_({m1_12_2_3}, stats.StepRejNbr.index({m1_12_2_3}) + 1);
               }
