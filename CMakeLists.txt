@@ -10,7 +10,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 # Find Python3 and NumPy
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
-
+# Find GTest
+find_package(GTest REQUIRED)
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/matplotlib-cpp)
