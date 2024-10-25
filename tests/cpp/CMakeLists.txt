@@ -17,10 +17,10 @@ find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 # Link GTest and Python
-target_link_libraries(odetest ${GTEST_LIBRARIES} ${GTEST_MAIN_LIBRARIES} Python3::Python Python3::NumPy)
+# Link libraries
+# Instead of ${GTEST_LIBRARIES} and ${GTEST_MAIN_LIBRARIES}, use GTest::GTest and GTest::Main
+target_link_libraries(odetest PRIVATE GTest::GTest GTest::Main "${TORCH_LIBRARIES}" Python3::Python Python3::NumPy)
 
-# Link libtorch
-target_link_libraries(odetest "${TORCH_LIBRARIES}")
 set_property(TARGET odetest PROPERTY CXX_STANDARD 17)
 
 # Set debug flags if CMAKE_BUILD_TYPE is Debug
@@ -28,8 +28,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Debug mode: Adding debugging flags")
     set_target_properties(odetest PROPERTIES COMPILE_FLAGS "-g")
 endif()
-
 # Add the test executable to CTest
+enable_testing()  # Ensure testing is enabled
 add_test(NAME OdeSolverTest COMMAND odetest)
 
 # Ensure the test executable is built when running 'make test'
