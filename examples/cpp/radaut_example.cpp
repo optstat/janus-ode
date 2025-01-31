@@ -1,5 +1,5 @@
-#include <janus/radaut.hpp>
-#include <janus/tensordual.hpp>
+#include "../../src/cpp/radaut.hpp"
+
 
 
 torch::Tensor vdpdyns(torch::Tensor& t, torch::Tensor& y, 
@@ -44,7 +44,15 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> vdpEvents
     torch::Tensor Slope = torch::tensor({1}, torch::TensorOptions().dtype(torch::kFloat64));
     return std::make_tuple(t, E, Stop, Slope);
 }
-
+//Initialize the statistical summary variables
+int StatsT::FcnNbr = 0;
+int StatsT::JacNbr = 0;
+int StatsT::DecompNbr = 0;
+int StatsT::SolveNbr = 0;
+int StatsT::StepNbr = 0;
+int StatsT::AccptNbr = 0;
+int StatsT::StepRejNbr = 0;
+int StatsT::NewtRejNbr = 0;
 
 //Create a main method for testing
 
@@ -57,7 +65,7 @@ int main(int argc, char *argv[])
   torch::Tensor y = torch::zeros({3}, torch::kF64).to(device);
   y[0] = 2.0;
   y[1] = 0.0;
-  y[2] = 1.0; 
+  y[2] = 1000.0; 
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   torch::Tensor tspan = torch::rand({2}, torch::kF64).to(device);
   tspan[0] = 0.0;

@@ -8,8 +8,8 @@
 #include <typeinfo>
 #include <math.h>
 #include <optional>
+#include <janus/janus_util.hpp>
 #include <janus/tensordual.hpp>
-#include <janus/qr.hpp>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <iomanip>
@@ -338,8 +338,8 @@ namespace janus
     torch::Tensor OutputSel;
     bool RealYN;
     bool NeedNewQR;
-    //std::vector<torch::Tensor> LUs, Pivots; //% LU decomposition
-    std::vector<QR> QRs;
+    std::vector<torch::Tensor> LUs, Pivots; //% LU decomposition
+    //std::vector<QR> QRs;
     bool Last;
     int Refine;
     bool Complex = false;
@@ -1902,9 +1902,9 @@ end */
       std::cerr << "Jac=" << Jac << std::endl;
       int NuMax;
       torch::Tensor B;
-      //Pivots.clear();
-      //LUs.clear();
-      QRs.clear();
+      Pivots.clear();
+      LUs.clear();
+      //QRs.clear();
       
       if (RealYN)
       {
@@ -1917,8 +1917,8 @@ end */
         }
         std::cerr << "B=";
         print_matrix(B);
-        /*Perform LU decomposition on the B matrix
-        auto lu_result = at::_lu_with_info(B.to(torch::kDouble));
+        //Perform LU decomposition on the B matrix
+        auto lu_result = at::_lu_with_info(B.to(torch::kDouble),  /*pivot=*/true, /*check_errors=*/false);
         auto LU = std::get<0>(lu_result);
         std::cerr << "LU=";
         print_matrix(LU);
@@ -1931,12 +1931,12 @@ end */
             return -1;
         }
         Pivots.push_back(pivots);
-        LUs.push_back(LU);*/
-        QRs.push_back(QR{B});
-        std::cerr << "QRs[0].r=";
-        print_matrix(QRs[0].r);
-          std::cerr << "QRs[0].qt=";
-        print_matrix(QRs[0].qt);
+        LUs.push_back(LU);
+        //QRs.push_back(QR{B});
+        //std::cerr << "QRs[0].r=";
+        //print_matrix(QRs[0].r);
+        //  std::cerr << "QRs[0].qt=";
+        //print_matrix(QRs[0].qt);
 
         if (NbrStg > 1)
         {
@@ -1970,7 +1970,7 @@ end */
             }
             std::cerr << "B real part=" << at::real(B) << std::endl;
             std::cerr << "B complex part=" << at::imag(B) << std::endl;
-            /*auto lu_result = at::_lu_with_info(B);
+            auto lu_result = at::_lu_with_info(B);
             auto LU = std::get<0>(lu_result);
             std::cerr << "LU real=";
             print_matrix(torch::real(LU));
@@ -1986,17 +1986,17 @@ end */
             auto L = torch::tril(LU, -1) + torch::eye(B.size(0), torch::kDouble).to(device);
             auto U = torch::triu(LU);
             Pivots.push_back(pivots.clone());
-            LUs.push_back(LU.clone());*/
-            QRs.push_back(QR{B});
-            std::cerr << "QRs[0].r real=";
-            print_matrix(torch::real(QRs.back().r));
-            std::cerr << "QRs[0].r imag=";
-            print_matrix(torch::imag(QRs.back().r));
+            LUs.push_back(LU.clone());
+            //QRs.push_back(QR{B});
+            //std::cerr << "QRs[0].r real=";
+            //print_matrix(torch::real(QRs.back().r));
+            //std::cerr << "QRs[0].r imag=";
+            //print_matrix(torch::imag(QRs.back().r));
 
-            std::cerr << "QRs[0].qt real=";
-            print_matrix(torch::real(QRs.back().qt));
-            std::cerr << "QRs[0].qt imag=";
-            print_matrix(torch::imag(QRs.back().qt));
+            //std::cerr << "QRs[0].qt real=";
+            //print_matrix(torch::real(QRs.back().qt));
+            //std::cerr << "QRs[0].qt imag=";
+            //print_matrix(torch::imag(QRs.back().qt));
 
 
             // B  = (valp(q2) + 1i*valp(q3))*Mass-Jac;
@@ -2014,7 +2014,7 @@ end */
             B=valp[q] * Mass - Jac;
           else
             B=valp[q] - Jac;
-          /*auto lu_result = torch::linalg::lu(B);
+          auto lu_result = torch::linalg::lu(B);
           auto LU = std::get<0>(lu_result);
           auto pivots = std::get<1>(lu_result);
           auto info = std::get<2>(lu_result);
@@ -2025,13 +2025,13 @@ end */
           auto L = torch::tril(LU, -1) + torch::eye(B.size(0)).to(device);
           auto U = torch::triu(LU);
           Pivots.push_back(pivots.clone());
-          LUs.push_back(LU.clone());*/
-          QR qr{B.clone()};
-          QRs.push_back(qr);  
+          LUs.push_back(LU.clone());
+          //QR qr{B.clone()};
+          //QRs.push_back(qr);  
         }
       }
       int U_Sing = 0;
-      /*for (int q = 0; q < NuMax; q++)
+      for (int q = 0; q < NuMax; q++)
       {
         auto LU = LUs[q];
         auto diagLU = torch::diag(LU);
@@ -2040,7 +2040,7 @@ end */
           std::cerr << "WARNING: g*Mass-Jac is singular." << std::endl;
           U_Sing = NbrStg;
         }
-      }*/
+      }
       return U_Sing;
     } // end of DecomRC
 
@@ -2083,12 +2083,15 @@ end */
         std::cerr << "z.index({0})=" << z.index({Slice(), 0}) << std::endl;
         auto zat0 = z.index({Slice(), 0});
         std::cerr << "zat0=" << zat0 << std::endl;
-        /*auto pivots = Pivots[0];
+        auto pivots = Pivots[0];
         std::cerr << "pivots=" << pivots << std::endl;
         auto LU = LUs[0];
         std::cerr << "LU=" << LU << std::endl;
-        auto sol = torch::lu_solve(zat0, LU, pivots).squeeze(1);*/
-        auto sol = QRs[0].solvev(zat0);
+        std::cout << "LibTorch version: " << TORCH_VERSION_MAJOR << "." 
+          << TORCH_VERSION_MINOR << "." << TORCH_VERSION_PATCH << std::endl;
+        auto sol = torch::lu_solve(zat0.unsqueeze(1), LU, pivots).squeeze(1);
+        //auto sol = torch::linalg::(zat0, LUs[0], Pivots[0]).squeeze(1);
+        //auto sol = QRs[0].solvev(zat0);
 
         std::cerr << "sol=" << sol << std::endl;
 
@@ -2112,10 +2115,14 @@ end */
             torch::Tensor imaginary_part = z3;
             torch::Tensor tempComplex = torch::complex(real_part, imaginary_part);
             std::cerr << "z2 before solvev=" << z2 << std::endl;
-            /*auto pivots = Pivots[q1-1];
+            auto pivots = Pivots[q1-1];
             auto LU = LUs[q1-1];
-            auto sol = torch::lu_solve(tempComplex, LU.to(torch::kComplexDouble), pivots).squeeze(1);*/
-            auto sol = QRs[q1-1].solvev(tempComplex);
+            std::cerr << "LU=";
+            print_matrix(LU);
+            std::cerr << "tempComplex=";
+            print_complex(tempComplex);
+            auto sol = torch::lu_solve(tempComplex.unsqueeze(1), LU.to(torch::kComplexDouble), pivots).squeeze(1);
+            //auto sol = QRs[q1-1].solvev(tempComplex);
             std::cerr << "z2 real after solvev=" << at::real(sol) << std::endl;
             std::cerr << "z2 imag after solvev=" << at::imag(sol) << std::endl;
             // TODO implement real and imag for dual tensors
@@ -2133,10 +2140,10 @@ end */
         {
           z.index_put_({Slice(), q - 1}, z.index({Slice(), q - 1}) - valp.index({Slice(), q - 1}) * Mw.index({Slice(), q - 1}));
           auto qrin = z.index({Slice(), q - 1}).unsqueeze(1);
-          /*auto pivots = Pivots[q-1];
+          auto pivots = Pivots[q-1];
           auto LU = LUs[q-1];
-          auto sol = torch::lu_solve(qrin, LU, pivots).squeeze(1);*/
-          auto sol = QRs[q-1].solvev(qrin);
+          auto sol = torch::lu_solve(qrin, LU, pivots).squeeze(1);
+          //auto sol = QRs[q-1].solvev(qrin);
           //auto sol = qrs[q - 1].solvev(qrin);
           z.index_put_({Slice(), q - 1}, sol);
         }
@@ -2179,10 +2186,10 @@ end */
       }
       auto f0ptemp = (f0 + temp);
       std::cerr << "f0ptemp=" << f0ptemp << std::endl;
-      /*auto pivots = Pivots[0];
+      auto pivots = Pivots[0];
       auto LU = LUs[0];
-      auto err_v = torch::lu_solve(f0ptemp, LU, pivots).squeeze(1);*/
-      auto err_v = QRs[0].solvev(f0ptemp);
+      auto err_v = torch::lu_solve(f0ptemp.unsqueeze(1), LU, pivots).squeeze(1);
+      //auto err_v = QRs[0].solvev(f0ptemp);
 
       //torch::Tensor err_v = qrs[0].solvev(f0ptemp);
       std::cerr << "err_v=" << err_v << std::endl;
@@ -2202,10 +2209,10 @@ end */
         StatsT::FcnNbr = StatsT::FcnNbr + 1;
         auto errptemp = (err_v + temp);
        
-        /*auto pivots = Pivots[0];
+        auto pivots = Pivots[0];
         auto LU = LUs[0];
-        auto errv_out  = torch::lu_solve(errptemp, LU, pivots).squeeze(1);*/
-        auto errv_out = QRs[0].solvev(errptemp);
+        auto errv_out  = torch::lu_solve(errptemp.unsqueeze(1), LU, pivots).squeeze(1);
+        //auto errv_out = QRs[0].solvev(errptemp);
 
         err = torch::norm(errv_out / Scal, 2);
 

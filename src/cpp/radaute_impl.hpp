@@ -19,8 +19,10 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
       // Storage space for QT and R matrices
       // Assume this is real
-      QT = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
-      R = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
+      //QT = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
+      //R = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
+      LU = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
+      Pivots = torch::zeros({M, MaxNbrStg.item<int>(), Ny}, torch::kInt32).to(device);
       statsCount = torch::zeros({M}, torch::kInt64).to(device);
       eventsCount = torch::zeros({M}, torch::kInt64).to(device);
       dynsCount = torch::zeros({M}, torch::kInt64).to(device);
@@ -413,6 +415,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
       hmin = torch::min(hmin, hmax);
       hopt = h.clone();
       auto m6 = ((t + h * 1.0001 - tfinal) * PosNeg >= 0);
+      std::cerr << "m6: " << m6 << std::endl;
       if (m6.any().item<bool>())
       {
         h.index_put_({m6}, tfinal.index({m6}) - t.index({m6}));
@@ -838,6 +841,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             // Initialize the continue masks at the start of the loop to be all false
             m1_11_2_continue = ~m1_11_2;
             countNewt += 1;
+            std::cerr << "Newton iteration count = " << countNewt << std::endl;
             Reject.index_put_({m1_11_2}, false);
             Newt.index_put_({m1_11_2}, Newt.index({m1_11_2}) + 1);
             auto m1_11_2_1 = m1 & m1_11_2 & (Newt > Nit) & ~m1_continue & ~m1_11_2_continue;
@@ -980,6 +984,8 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             m1_11_2.index_put_({m1 & m1_11_2 & ~m1_11_2_continue & ~m1_continue}, false);
           } // end of while loop for Newton Iteration
         }   // end of stages
+        std::cerr << "Newton iteration done" << std::endl;
+        std::cerr << "Current time = " << t.item<double>() << std::endl;
 
         // Determination of the new step size
         for (auto stage : stages)
@@ -991,13 +997,17 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             continue;
           }
           set_active_stage(stage);
+          std::cerr << "Active Stage = " << stage << std::endl;
 
           m1_continue.index_put_({NeedNewQR & m1 & ~m1_continue & (NbrStg == stage)}, true);
 
           // Need a new mask since m1_continue has been potentially updated
           auto m1_12 = m1 & (NbrStg == stage) & ~m1_continue;
-
-
+          if (m1_12.all().item<bool>()==false)
+          {
+            continue;
+          }
+          std::cerr << "m1_12 = " << m1_12 << std::endl;
             // Dyn.Newt_t    = [Dyn.Newt_t;t];
             // auto tt = torch::full({M}, std::numeric_limits<float>::quiet_NaN(), torch::kFloat64).to(device);
             // tt.index_put_({m1_12}, t.index({m1_12}));
@@ -1038,6 +1048,11 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
             // Check if the error was accepted
             auto m1_12_1 = m1 & m1_12 & (err < 1) & ~m1_continue;
+            if (m1_12_1.any().equal(true_tensor))
+            {
+              std::cerr << "Step is accepted" << std::endl;
+              std::cerr <<"Integration time= " << t.item<double>() << std::endl;
+            }
 
             //% ------- IS THE ERROR SMALL ENOUGH ?
             // ------- STEP IS ACCEPTED
@@ -1466,9 +1481,15 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         }
         // The zeroth stage is always present
         auto Bss_real = Bs; // Truncate the te
-        auto qrs = QRTe(Bs); // Perform the QR decomposition in a vector form
-        QT.index_put_({mask, q}, qrs.qt);
-        R.index_put_({mask, q}, qrs.r);
+        //auto qrs = QRTe(Bs); // Perform the QR decomposition in a vector form
+        //QT.index_put_({mask, q}, qrs.qt);
+        //R.index_put_({mask, q}, qrs.r);
+        //Replace using LU decomposition
+        auto lu_result = torch::linalg_lu_factor(Bs);
+        auto Pivotl = std::get<1>(lu_result);
+        auto LUl = std::get<0>(lu_result);
+        LU.index_put_({mask, q}, LUl);
+        Pivots.index_put_({mask, q}, Pivotl);
       }
     } // end of DecomRC
 
@@ -1528,9 +1549,20 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         }
         // Make it complex to keep the types consistent
         auto Bss = torch::complex(Bss_real, Bss_imag);
-        auto qrs = QRTeC(Bss); // Perform the QR decomposition in a vector form
+        /*auto qrs = QRTeC(Bss); Perform the QR decomposition in a vector form
         QT.index_put_({mask, 0}, qrs.qt);
-        R.index_put_({mask, 0}, qrs.r);
+        R.index_put_({mask, 0}, qrs.r);*/
+        //Replace using LU decomposition
+        auto lu_result = torch::linalg_lu_factor(Bss);
+        auto Pl = std::get<1>(lu_result);
+        //std::cerr << "Pl=" << Pl << std::endl;
+        auto LUl = std::get<0>(lu_result);
+        //std::cerr << "LUl=" << LUl << std::endl;
+        //print an error if not succesful
+        //auto LUl = std::get<0>(lu_result);
+        //auto Pl = std::get<1>(lu_result);
+        LU.index_put_({mask, 0}, LUl);
+        Pivots.index_put_({mask, 0}, Pl);
         // Each sample has a different NbrStg.
         // We loop through the stages and perform the QR decomposition
         // if the stage is present in the masked sample
@@ -1564,9 +1596,16 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               auto B_i = torch::eye(Ny, torch::kDouble).repeat({indxs.size(0), 1, 1}) * imag_part.unsqueeze(2);
 
               Bs = torch::complex(B_r, B_i);
-              auto qrs = QRTeC(Bs);
+              /*auto qrs = QRTeC(Bs);
               QT.index_put_({indxs, q1 - 1}, qrs.qt);
-              R.index_put_({indxs, q1 - 1}, qrs.r);
+              R.index_put_({indxs, q1 - 1}, qrs.r);*/
+              //Replace using LU decomposition
+              auto lu_result = torch::linalg_lu_factor(Bs);
+              auto Pl = std::get<1>(lu_result);
+              auto LUl = std::get<0>(lu_result);
+              //Store the results
+              LU.index_put_({indxs, q1 - 1}, LUl);
+              Pivots.index_put_({indxs, q1 - 1}, Pl);
             }
           }
       }
@@ -1585,9 +1624,17 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
                 Bs = valp[q] * Mass - Jac.index({indx});
               else
                 Bs = valp[q] - Jac.index({indx});
-              QRTeC qr{Bs}; // This is done in batch form
-              QT.index_put_({indx, q}, qr.qt);
-              R.index_put_({indx, q}, qr.r);
+              //Solve the problem using LU decomposition
+
+              //QRTeC qr{Bs}; // This is done in batch form
+              //QT.index_put_({indx, q}, qr.qt);
+              //R.index_put_({indx, q}, qr.r);
+              auto lu_result = torch::linalg_lu_factor(Bs);
+              auto Pl = std::get<1>(lu_result);
+              auto LUl = std::get<0>(lu_result);
+              //Store the results
+              LU.index_put_({indx, q}, LUl);
+              Pivots.index_put_({indx, q}, Pl);
             }
           }
       }
@@ -1620,7 +1667,10 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         auto zatq = z.index({mask, Slice(), q});
 
         // Apply QR decomposition in parallel
-        auto solq = QRTe::solvev(QT.index({mask, q}), R.index({mask, q}), zatq);
+        //auto solq = QRTe::solvev(QT.index({mask, q}), R.index({mask, q}), zatq);
+        auto solq = torch::linalg_lu_solve(LU.index({mask, q}), 
+                                           Pivots.index({mask, q}), 
+                                           zatq);
 
         z.index_put_({mask, Slice(), q}, torch::real(solq));
         // check for NaN
@@ -1647,8 +1697,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
       if (RealYN)
       {
         // All samples with the mask have at least one stage
-        auto nzindxs = mask.nonzero();
-        if (nzindxs.numel() == 0)
+        if (!mask.any().item<bool>())
           return; // Nothing to do for this stage
         // valp = ValP.unsqueeze(0) / h.index({mask}).unsqueeze(1);
         valp = torch::einsum("s, m->ms", {ValP, h.index({mask}).reciprocal()});
@@ -1659,14 +1708,29 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         }
         auto valpMw = torch::einsum("m, mn->mn", {valp.index({Slice(), 0}), Mw.index({Slice(), Slice(), 0})});
         z.index_put_({mask, Slice(), 0}, z.index({mask, Slice(), 0}).clone() - valpMw);
+        auto zc = torch::complex(z, torch::zeros_like(z));
 
         auto zat0 = z.index({mask, Slice(), 0});
 
         // Apply QR decomposition in parallel
         // convert the zat0 to a complex tensor
         auto zat0c = torch::complex(zat0, torch::zeros_like(zat0));
-        auto sol0 = QRTeC::solvev(QT.index({mask, 0}), R.index({mask, 0}), zat0c);
-
+        if (zat0c.size(0) == 1)
+        {
+          zat0c = zat0c.unsqueeze(-1);
+        }
+        auto LUl = LU.index({mask, 0});
+        auto Pl = Pivots.index({mask, 0});
+        //auto sol0 = QRTeC::solvev(QT.index({mask, 0}), R.index({mask, 0}), zat0c);
+        //Solve using LU decomposition using the stored matrices L, U and Pivots
+        auto sol0=torch::linalg_lu_solve(LUl, 
+                                         Pl,
+                                         zat0c);
+        if (sol0.size(0) == 1)
+        {
+          sol0 = sol0.squeeze(-1);
+        }
+        
         z.index_put_({mask, Slice(), 0}, torch::real(sol0));
         // check for NaN
         if (torch::any(torch::isnan(z)).item<bool>())
@@ -1675,21 +1739,21 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
           exit(1);
         }
         // For this mask stage is equal to NbrStg so no need to check
-        auto indxs = mask & (stage > 1);
-        if (indxs.any().item<bool>())
+        auto mindxs = mask & (stage > 1);
+        if (mindxs.any().item<bool>())
         {
-          auto nzindxs = indxs.nonzero().view({-1});
+          //Because the stage is shared among all the samples, we can calculate the valp tensor once
+          //Also the indx is by definition equal to the mask so we can use it to index into the other tensors
           // valp = ValP.unsqueeze(0) / h.index({indxs}).unsqueeze(1);
           valp = torch::einsum("s, m->ms", {ValP, h.index({mask}).reciprocal()});
-          Mw = w.index({indxs});
+          Mw = w.index({mindxs});
           if (MassFcn)
           {
-            Mw = torch::einsum("mnn,mn->mn", {Mass, w.index({indxs})});
+            Mw = torch::einsum("mnn,mn->mn", {Mass, w.index({mindxs})});
           }
 
           for (int q = 1; q <= ((stage - 1) / 2); q++)
           {
-            // If there are no indices for this stage, then continue to the next stage
             // Each sample will have exactly one stage
             // Extract the samples for this stage
             int q1 = q + 1;
@@ -1706,30 +1770,44 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             // std::cerr << "Mw.index({nzindxs, Slice(), q2 - 1})";
             // print_tensor(Mw.index({nzindxs, Slice(), q2 - 1}));
             torch::Tensor z2 =
-                z.index({mask, Slice(), q2 - 1}) -
+                z.index({mindxs, Slice(), q2 - 1}) -
                 // valp.index({Slice(), q2 - 1}).unsqueeze(1) * Mw.index({nzindxs, Slice(), q2 - 1}) +
                 torch::einsum("m,mi->mi", {valp.index({Slice(), q2 - 1}), Mw.index({Slice(), Slice(), q2 - 1})}) +
                 // valp.index({Slice(), q3 - 1}).unsqueeze(1) * Mw.index({nzindxs, Slice(), q3 - 1});
                 torch::einsum("m,mi->mi", {valp.index({Slice(), q3 - 1}), Mw.index({Slice(), Slice(), q3 - 1})});
             torch::Tensor z3 =
-                z.index({nzindxs, Slice(), q3 - 1}) -
+                z.index({mindxs, Slice(), q3 - 1}) -
                 // valp.index({Slice(), q3 - 1}).unsqueeze(1) * Mw.index({nzindxs, Slice(), q2 - 1}) -
                 torch::einsum("m,mi->mi", {valp.index({Slice(), q3 - 1}), Mw.index({Slice(), Slice(), q2 - 1})}) -
                 // valp.index({Slice(), q2 - 1}).unsqueeze(1) * Mw.index({nzindxs, Slice(), q3 - 1});
                 torch::einsum("m,mi->mi", {valp.index({Slice(), q2 - 1}), Mw.index({Slice(), Slice(), q3 - 1})});
-            torch::Tensor real_part = z2;
-            torch::Tensor imaginary_part = z3;
+            //Remove the batch dimension if it is 1
+            //because it causes an error in the LU decomposition
+            torch::Tensor tempComplex = torch::complex(z2, z3);
+            if (tempComplex.size(0) == 1)
+            {
+              tempComplex = tempComplex.unsqueeze(-1);
+            }
+            auto LUl = LU.index({mask, q1 - 1}).contiguous();
+            auto Pl =  Pivots.index({mask, q1 - 1}).contiguous();
 
-            torch::Tensor tempComplex = torch::complex(real_part, imaginary_part);
-            auto sol = QRTeC::solvev(QT.index({indxs, q1 - 1}), R.index({indxs, q1 - 1}), tempComplex);
-            z.index_put_({nzindxs, Slice(), q2 - 1}, at::real(sol));
-            z.index_put_({nzindxs, Slice(), q3 - 1}, at::imag(sol));
+            //auto sol = QRTeC::solvev(QT.index({indxs, q1 - 1}), R.index({indxs, q1 - 1}), tempComplex);
+            auto sol = torch::linalg_lu_solve(LUl, 
+                                      Pl, 
+                                      tempComplex);
+            if (sol.size(0) == 1)
+            {
+              sol = sol.squeeze(-1);
+            }
+
+            z.index_put_({mindxs, Slice(), q2 - 1}, at::real(sol));
+            z.index_put_({mindxs, Slice(), q3 - 1}, at::imag(sol));
 
             // check for Nan in the solution
             if (torch::any(torch::isnan(z)).item<bool>())
             {
               std::cerr << "Some components of the solution are NAN" << std::endl;
-              mask.index_put_({mask.clone()}, ~mask); //This effectively terminates calculations for these samples
+              mask.index_put_({mindxs.clone()}, ~mindxs); //This effectively terminates calculations for these samples
 
             }
           }
@@ -1749,7 +1827,10 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             z.index_put_({nzindxs, Slice(), q - 1}, z.index({nzindxs, Slice(), q - 1}) -
                                                         valp.index({nzindxs, Slice(), q - 1}) * Mw.index({nzindxs, Slice(), q - 1}));
             auto qrin = z.index({nzindxs, Slice(), q - 1}).unsqueeze(1);
-            auto sol = QRTeC::solvev(QT.index({m1, q - 1}), R.index({m1, q - 1}), qrin);
+            //auto sol = QRTeC::solvev(QT.index({m1, q - 1}), R.index({m1, q - 1}), qrin);
+            auto sol = torch::linalg_lu_solve(LU.index({m1, Slice(q - 1,q)}), 
+                                              Pivots.index({m1, Slice(q - 1,q)}), 
+                                              qrin);
             // auto sol = qrs[q - 1].solvev(qrin);
             z.index_put_({nzindxs, Slice(), q - 1}, sol);
         }
@@ -1764,6 +1845,7 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
       torch::Tensor SqrtNy = torch::sqrt(torch::tensor(y.size(1), torch::kFloat64).to(device));
       // Here the Dds have to be accumulated by stage since each sample may be at a different stage
       auto m1 = mask;
+      
         auto Ddoh = torch::einsum("s,m->ms", {Dd, h.index({m1}).reciprocal()}); //   Dd/h
         auto temp = torch::einsum("mns,ms->mn", {z.index({m1}), Ddoh});         // z*Dd/h
 
@@ -1776,15 +1858,30 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
         // convert to complex
         auto f0ptComplex = torch::complex(f0ptemp, torch::zeros_like(f0ptemp));
-        auto err_v = torch::real(QRTeC::solvev(QT.index({m1, 0}), R.index({m1, 0}), f0ptComplex));
-
+        if (f0ptComplex.size(0) == 1)
+        {
+          f0ptComplex = f0ptComplex.unsqueeze(-1);
+        }
+        std::cerr << "f0ptComplex sizes =" << f0ptComplex.sizes() << std::endl;
+        std::cerr <<"mask=" << mask << std::endl;
+        //auto err_v = torch::real(QRTeC::solvev(QT.index({m1, 0}), R.index({m1, 0}), f0ptComplex));
+        auto err_v = torch::real(torch::linalg_lu_solve(LU.index({m1, 0}), 
+                                                        Pivots.index({m1, 0}), 
+                                                        f0ptComplex));
+        std::cerr << "err_v sizes =" << err_v.sizes() << std::endl;
+        if (err_v.size(0) == 1)
+        {
+          //Get rid of the last dimension because it is articial artifact the API limitations
+          err_v = err_v.squeeze(-1);
+        }
+        std::cerr << "err_v sizes =" << err_v.sizes() << std::endl;
         err.index_put_({m1}, torch::squeeze(torch::norm(err_v / Scal.index({m1}), 2, 1, false)));
         // For torch::max the broadcasting is automatic
         err.index_put_({m1}, torch::max(err.index({m1}) / SqrtNy, oneEmten));
         // Only continue if error is greater than 1
         // Otherwise keep this value
         auto m1_1 = m1 & (First | Reject) & (err >= 1);
-        if (m1_1.any().item<bool>())
+        if (m1_1.any().item<bool>()) 
         {
           torch::Tensor yadj = y.index({m1_1}) + err.index({m1_1}).unsqueeze(1);
           err_v = OdeFcn(t.index({m1_1}), yadj, params);
@@ -1792,14 +1889,29 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
           auto errptemp = (err_v + temp.index({m1_1}));
           // convert to complex
           auto errpComplex = torch::complex(errptemp, torch::zeros_like(errptemp));
+          if (errpComplex.size(0) == 1)
+          {
+            errpComplex = errpComplex.unsqueeze(-1);
+          }
           auto idxsm1 = m1_1.nonzero();
 
-          auto errv_out = torch::real(QRTeC::solvev(QT.index({m1_1, 0}), R.index({m1_1, 0}), errpComplex));
-
+          //auto errv_out = torch::real(QRTeC::solvev(QT.index({m1_1, 0}), R.index({m1_1, 0}), errpComplex));
+          std::cerr << "errpComplex sizes before LU solve call " << errpComplex.sizes() << std::endl;
+          
+          auto errv_out = torch::real(torch::linalg_lu_solve(LU.index({m1_1, 0}), 
+                                                             Pivots.index({m1_1, 0}),
+                                                             errpComplex));
+          std::cerr << "errv_out sizes after LU solve call " << errv_out.sizes() << std::endl;
+          if (errv_out.size(0) == 1)
+          {
+            errv_out = errv_out.squeeze(-1);
+          }
           err.index_put_({m1_1}, torch::norm(errv_out / Scal.index({m1_1}), 2, 1, false));
           // For torch::max the broadcasting is automatic
           err.index_put_({m1_1}, torch::max((err.index({m1_1}) / SqrtNy), oneEmten));
         }
+      
+    
     } // end of Estrad
 
     inline std::tuple<torch::Tensor, torch::Tensor>

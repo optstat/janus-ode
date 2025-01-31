@@ -35,6 +35,7 @@ set(SOURCE_FILE5 radauted_vdp_norm_example.cpp)
 set(SOURCE_FILE6 radaute_example_reverse.cpp)
 set(SOURCE_FILE7 radauted_example_reverse.cpp)
 set(SOURCE_FILE8 radauted_vdp_aug_example.cpp)
+set(SOURCE_FILE9 radaut_example.cpp)
 
 add_executable(vdphamexample ${SOURCE_FILE1})
 # Link libraries
@@ -77,6 +78,11 @@ add_executable(radauted_vdp_aug_example ${SOURCE_FILE8})
 target_link_libraries(radauted_vdp_aug_example "${TORCH_LIBRARIES}")
 target_link_libraries(radauted_vdp_aug_example Python3::Python Python3::NumPy)
 
+add_executable(radaut_example ${SOURCE_FILE9})
+# Link libraries for the second executable
+target_link_libraries(radaut_example "${TORCH_LIBRARIES}")
+target_link_libraries(radaut_example Python3::Python Python3::NumPy)
+
 
 # Ensure the executable is built when running 'make vdphamexample'
 add_custom_target(create_vdphamexample
@@ -112,4 +118,8 @@ add_custom_target(create_vdpexample_dual_reverse
 
 add_custom_target(create_radauted_vdp_aug_example
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target radauted_vdp_aug_example
+)
+
+add_custom_target(create_radaut_example
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target radaut_example
 )

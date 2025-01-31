@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
   //Create an instance of the Radau5 class
   torch::Tensor params = torch::empty({0}, torch::kFloat64).to(device);
   //Check for memory leaks
-  for ( int i=0; i < 1000; i++) {
+  for ( int i=0; i < 10; i++) {
     std::cerr << "running iteration " << i << "for memory leaks" << std::endl;
     janus::RadauTe r(vdpdyns, jac, tspan, y, options, params);   
     r.solve();
