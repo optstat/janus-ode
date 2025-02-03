@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
   TensorDual y = TensorDual(torch::zeros({M, D}, torch::kF64).to(device), torch::eye(D).repeat({M,1,1}).to(torch::kF64).to(device));
   for (int i=0; i < M; i++) {
     y.r.index_put_({i, 0}, 2.0+0.0001*i);
-    y.r.index_put_({i, 2}, 1.0+0.001*i);
+    y.r.index_put_({i, 2}, 1000.0+0.001*i);
   }
   y.r.index_put_({Slice(), 1}, 0.0);
  
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
   //Create an instance of the Radau5 class
   TensorDual params = TensorDual(torch::empty({0,0}, torch::kFloat64).to(device), torch::zeros({M,2,N}, torch::kFloat64).to(device));
   //Run this multiple times to make sure there are no memory leaks
-  for ( int i=0; i < 100; i++)
+  for ( int i=0; i < 10000; i++)
   {
     std::cerr << "Running iteration " << i << std::endl;
     janus::RadauTeD r(vdpdyns, jac, tspan, y, options, params);   // Pass the correct arguments to the constructor
@@ -129,11 +129,12 @@ int main(int argc, char *argv[])
   std::vector<std::vector<double>> x2s(M);
   for ( int i=0; i < M; i++) {
     nouts[i] = r.nout.index({i}).item<int>();
+    std::cout << "nouts[" << i << "]=" << nouts[i] << std::endl;
     x1s[i].resize(nouts[i]);
     x2s[i].resize(nouts[i]);
     for ( int j=0; j < nouts[i]; j++) {
-      x1s[i][j] = r.yout.r.index({i, j, 0}).item<double>();
-      x2s[i][j] = r.yout.r.index({i, j, 1}).item<double>();
+      x1s[i][j] = r.yout.r.index({i, 0, j}).item<double>();
+      x2s[i][j] = r.yout.r.index({i, 1, j}).item<double>();
     }
   }
 

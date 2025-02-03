@@ -25,8 +25,8 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
       // There are at most 4 QT and R matrices for the Radau method
       for (int i = 0; i < 4; i++)
       {
-        QT[i] = TensorMatDual::createZero(torch::zeros({M, Ny, Ny}, torch::kComplexDouble), Nd).to(device);
-        R[i] = TensorMatDual::createZero(torch::zeros({M, Ny, Ny}, torch::kComplexDouble), Nd).to(device);
+        QT[i] = TensorMatDual::createZero(torch::zeros({M, Ny, Ny}, torch::kComplexDouble), Nd).to_(device);
+        R[i] = TensorMatDual::createZero(torch::zeros({M, Ny, Ny}, torch::kComplexDouble), Nd).to_(device);
       }
       statsCount = torch::zeros({M}, torch::kInt64).to(device);
       eventsCount = torch::zeros({M}, torch::kInt64).to(device);
@@ -83,7 +83,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         std::cerr << Solver_Name << ": AbsTol vector of length 1 or " << Ny << std::endl;
         exit(1);
       }
-      MaxStep = tspan.index({Slice(), Slice(-1, -1)}) - tspan.index({Slice(), Slice(0, 1)});
+      MaxStep = tspan.index({Slice(), Slice(0, 1)}) - tspan.index({Slice(), Slice(0, 1)});
       // Tensorize the absolute tolerance
       AbsTol = TensorDual(Op.AbsTol.repeat({M, Ny}), y.d * 0.0);
       if (Op.RelTol.size(0) != Ny && Op.RelTol.size(0) != 1)
@@ -308,8 +308,9 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           OutFlag = 1;
           nBuffer = 1;
           nout = torch::zeros({M}, torch::kInt64);
+          //We will append columns to the output buffer
           tout = TensorMatDual(torch::zeros({M, 1, nBuffer}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}, torch::kDouble));
-          yout = TensorMatDual(torch::zeros({M, nBuffer, Ny}, torch::kDouble), torch::zeros({M, nBuffer, Ny, Nd}, torch::kDouble));
+          yout = TensorMatDual(torch::zeros({M, Ny, Ny*nBuffer}, torch::kDouble), torch::zeros({M, Ny, Ny*nBuffer, Nd}, torch::kDouble));
         }
         else
         {
@@ -317,7 +318,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           nBuffer = 1 * Refine;
           nout = torch::zeros({M}, torch::kInt64);
           tout = TensorMatDual(torch::zeros({M, 1, nBuffer}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}));
-          yout = TensorMatDual(torch::zeros({M, nBuffer, Ny}, torch::kDouble), torch::zeros({M, nBuffer, Ny, Nd}, torch::kDouble));
+          yout = TensorMatDual(torch::zeros({M, Ny, nBuffer*Ny}, torch::kDouble), torch::zeros({M, Ny, Ny*nBuffer, Nd}, torch::kDouble));
         }
       }
       else
@@ -449,6 +450,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
       hopt = h.clone();
       
       auto m6 = (TensorDual::einsum("mi,mi->mi", (t + h * 1.0001 - tfinal) , PosNeg) >= 0);
+      m6.squeeze_(-1);  //Remove the last dimension since it is always 1
       if (m6.any().item<bool>())
       {
         h.index_put_({m6}, tfinal.index({m6}) - t.index({m6}));
@@ -916,15 +918,15 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             for (int q = 1; q <= stage; q++)
             {
               z.index_put_({m1_10, Slice(), q - 1}, (cq.index({m1_10, Slice(q - 1, q)}) - C.index({0}) + one) * 
-                                                     cont.index({m1_10, Slice(), Slice(stage - 1, stage)}));
+                                                     cont.index({m1_10, Slice(), Slice(stage - 1, stage)}), 2);
               for (int q1 = 2; q1 <= stage; q1++)
               {
                 z.index_put_({m1_10, Slice(), q - 1}, (cq.index({m1_10, Slice(q - 1, q)}) - 
                                                        C.index({q1 - 1}) + one) * 
                                                        (z.index({m1_10, Slice(), Slice(q - 1, q)}) + 
                                                         cont.index({m1_10, Slice(), Slice(stage - q1, stage - q1 + 1)})
-                                                       )
-                            );
+                                                       ), 
+                                                        2);
               }
             }
 
@@ -963,6 +965,9 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               auto epsd = TensorDual::einsum("mi, j->mi",TensorDual::ones_like(RelTol1min), eps);
               FNewt.index_put_({m1_11_1}, max(10 * epsd / RelTol1min, p03.unsqueeze(0)));
             }
+            std::cerr << "FacConv = ";
+            print_dual(FacConv);
+            std::cerr << "m1_11 = " << m1_11 << std::endl;
             FacConv.index_put_({m1_11}, bpow(max(FacConv.index({m1_11}), eps), 0.8));
             Theta.index_put_({m1_11}, Thet.index({m1_11}).abs());
             Newt.index_put_({m1_11}, 0.0);
@@ -1028,7 +1033,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                 TensorDual yatq = y.index({m1_11_2_2}) + z.index({m1_11_2_2, Slice(), Slice(q - 1, q)}).squeeze(2);
                 TensorDual fatq = OdeFcn(tatq, yatq, params);
 
-                f.index_put_({m1_11_2_2, Slice(), q - 1}, fatq); //% OdeFcn needs parameters
+                f.index_put_({m1_11_2_2, Slice(), Slice(q - 1,q)}, fatq); //% OdeFcn needs parameters
                 if (torch::any(torch::isnan(f.r)).item<bool>())
                 {
                   std::cerr << "Some components of the ODE are NAN" << std::endl;
@@ -1336,7 +1341,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               for (int q = 1; q <= stage - 1; q++)
               {
                 Fact.index_put_({m1_12_1}, 1.0 / (C.index({stage - q - 1}) - C.index({stage - q})));
-                cont.index_put_({m1_12_1, Slice(), q - 1},
+                cont.index_put_({m1_12_1, Slice(), Slice(q - 1, q)},
                                 (z.index({m1_12_1, Slice(), Slice(stage - q - 1, stage - q)}) - z.index({m1_12_1, Slice(), Slice(stage - q, stage - q + 1)})) * Fact.index({m1_12_1}));
               }
               for (int jj = 2; jj <= stage; jj++)
@@ -1351,7 +1356,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                   {
                     Fact.index_put_({m1_12_1}, (C.index({stage - k - 1}) - C.index({stage - k + jj - 1})).reciprocal());
                   }
-                  cont.index_put_({m1_12_1, Slice(), k - 1},
+                  cont.index_put_({m1_12_1, Slice(), Slice(k - 1,k)},
                                   (cont.index({m1_12_1, Slice(), Slice(k - 1, k)}) - cont.index({m1_12_1, Slice(), Slice(k - 2, k - 1)})) * Fact.index({m1_12_1}));
                 } // End of for k loop
               }   // End of for jj loop
@@ -1381,17 +1386,23 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               case 1: // Computed points, no Refinement
                 // Expand the buffer if necessary
                 nout.index_put_({m1_12_1}, nout.index({m1_12_1}) + 1);
-
-                if ((nout > tout.r.size(1)).eq(true_tensor).any().item<bool>())
+                //Add columns to the output matrices if necessary  
+                if ((nout > tout.r.size(2)).eq(true_tensor).any().item<bool>())
                 {
-                  tout = TensorMatDual::cat(tout, TensorMatDual(torch::zeros({M, nBuffer, 1}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}, torch::kDouble)), 1);
-                  yout = TensorMatDual::cat(yout, TensorMatDual(torch::zeros({M, nBuffer, Ny}, torch::kDouble), torch::zeros({M, nBuffer, Ny, Nd}, torch::kDouble)), 1);
+                  tout = TensorMatDual::cat(tout, TensorMatDual(torch::zeros({M, 1, nBuffer}, torch::kDouble), torch::zeros({M, 1, nBuffer, Nd}, torch::kDouble)), 2);
+                  yout = TensorMatDual::cat(yout, TensorMatDual(torch::zeros({M, Ny, Ny*nBuffer}, torch::kDouble), torch::zeros({M, Ny, Ny*nBuffer, Nd}, torch::kDouble)), 2);
                 }
                 
                 //tout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
                 //yout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
-                tout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
-                yout.index_put_({m1_12_1, nout.index({m1_12_1}) - 1}, y.index({m1_12_1}));
+                tout.index_put_({m1_12_1, Slice(), nout.index({m1_12_1}) - 1}, t.index({m1_12_1}));
+                std::cerr << "m1_12_1 = " << m1_12_1 << "\n";
+                std::cerr << "y.index({m1_12_1}) = ";
+                print_dual(y.index({m1_12_1}));
+                std::cerr << "nout.index({m1_12_1}) = " << nout.index({m1_12_1}) << "\n";
+                std::cerr << "yout="; 
+                print_dual(yout);
+                yout.index_put_({m1_12_1, Slice(), nout.index({m1_12_1}) - 1}, y.index({m1_12_1}), 2);
                 //std::cerr << "m1_12_1 = " << m1_12_1 << "\n";
                 //std::cerr << "t = " << t << "\n";
                 //std::cerr << "count=" << count << "\n";
@@ -1733,7 +1744,8 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         }
         else
         {
-          Bs = -Jac.index({mask}) + (y.index({mask}).eye() * valp.index({Slice(), Slice(0, 1)}).unsqueeze(2));
+          //Use Einsum to allow the equivalent broadcasting
+          Bs = -Jac.index({mask}) + TensorMatDual::einsum("mij,mss->mij",y.index({mask}).eye(),valp.index({Slice(), Slice(0, 1)}).unsqueeze(2));
         }
         // The zeroth stage is always present
         // check to see if Bs is double precision
@@ -1774,7 +1786,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               // print_tensor(torch::eye(Ny, Ny, torch::kDouble).repeat({indxs.size(0), 1, 1}));
               // std::cerr << "real_part=";
               // print_tensor(real_part);
-              auto Jaci = Jac.index({indxs});
+              auto Jaci = Jac.index({m});
               //auto B_r = torch::eye(Ny, torch::kDouble).repeat({indxs.size(0), 1, 1}) * real_part.unsqueeze(2) - Jac.index({indxs});
 
               //auto B_i = torch::eye(Ny, torch::kDouble).repeat({indxs.size(0), 1, 1}) * imag_part.unsqueeze(2);
@@ -1786,8 +1798,8 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
               Bs = TensorMatDual(torch::complex(B_r.r, B_i.r), torch::complex(B_r.d, B_i.d));
               auto qrs = QRTeDC(Bs);
-              QT[q1 - 1].index_put_({indxs}, qrs.qt);
-              R[q1 - 1].index_put_({indxs}, qrs.r);
+              QT[q1 - 1].index_put_({m}, qrs.qt);
+              R[q1 - 1].index_put_({m}, qrs.r);
             }
           }
         }
@@ -1843,7 +1855,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         
         //auto valpMw = torch::einsum("m, mn->mn", {valp.index({Slice(), 0}), Mw.index({Slice(), Slice(), 0})});
 
-        auto valpMw =TensorMatDual::einsum("mi, mni->mni", valp.index({Slice(), Slice(0,1)}), 
+        auto valpMw =TensorMatDual::einsum("mi, mni->mn", valp.index({Slice(), Slice(0,1)}), 
                                                            Mw.index({Slice(), Slice(), Slice(0,1)}));
 
         z.index_put_({mask, Slice(), Slice(0,1)}, z.index({mask, Slice(), Slice(0,1)}).clone() - valpMw);
@@ -1858,7 +1870,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         auto R0 = R[0].index({mask});
         auto sol0 = QRTeDC::solvev(QT0, R0, zat0c);
 
-        z.index_put_({mask, Slice(), 0}, TensorDual(torch::real(sol0.r), torch::real(sol0.d)));
+        z.index_put_({mask, Slice(), Slice(0,1)}, TensorDual(torch::real(sol0.r), torch::real(sol0.d)));
         // check for NaN
         if (torch::any(torch::isnan(z.r)).eq(true_tensor).item<bool>())
         {

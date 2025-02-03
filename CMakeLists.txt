@@ -8,6 +8,10 @@ option(HEADER_ONLY "Build as header-only library" ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
+
+#Set the build type to Release if not specified
+set(CMAKE_BUILD_TYPE Debug  )
+
 # Find Python3 and NumPy
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 # Find GTest
