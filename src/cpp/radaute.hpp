@@ -283,7 +283,7 @@ namespace janus
     bool UseParams;
 
     torch::Tensor Stage = torch::tensor({1, 3, 5, 7});
-    //torch::Tensor QT, R;
+    torch::Tensor QT, R;
     torch::Tensor LU, Pivots; //Switching to LU decomposition
 
     int nFcn, nJac, nStep, nAccpt, nRejct, nDec, nSol, nitMax;

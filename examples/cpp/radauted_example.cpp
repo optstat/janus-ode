@@ -30,7 +30,7 @@ TensorDual vdpdyns(const TensorDual& t, const TensorDual& y, const TensorDual& p
 
 
 
-TensorMatDual jac(const TensorDual& t, const TensorDual& y, 
+TensorMatDual jac_dual(const TensorDual& t, const TensorDual& y, 
                   const TensorDual& params) {
   int M = y.r.size(0);
   int D = y.r.size(1);
@@ -48,7 +48,9 @@ TensorMatDual jac(const TensorDual& t, const TensorDual& y,
   jac.index_put_({Slice(), Slice(1,2), Slice(2,3)}, j12.unsqueeze(2));
   return jac; //Return the through copy elision
 }
- 
+
+
+
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> vdpEvents(torch::Tensor& t, 
                                                                   torch::Tensor& y, 
@@ -77,6 +79,8 @@ auto matOne = TensorMatDual(torch::empty({M, 1, 1}, torch::kDouble).to(device),
 int main(int argc, char *argv[])
 {
 
+  double mu = 3.0;
+
   void (*pt)(const torch::Tensor&) = janus::print_tensor;
   void (*pd)(const TensorDual&) = janus::print_dual;
   void (*pmd)(const TensorMatDual&) = janus::print_dual;
@@ -89,26 +93,26 @@ int main(int argc, char *argv[])
   TensorDual y = TensorDual(torch::zeros({M, D}, torch::kF64).to(device), torch::eye(D).repeat({M,1,1}).to(torch::kF64).to(device));
   for (int i=0; i < M; i++) {
     y.r.index_put_({i, 0}, 2.0+0.0001*i);
-    y.r.index_put_({i, 2}, 1000.0+0.001*i);
+    y.r.index_put_({i, 2}, mu+0.001*i);
   }
-  y.r.index_put_({Slice(), 1}, 0.0);
+  y.r.index_put_({Slice(), 1}, 2.0);
  
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   TensorDual tspan = TensorDual(torch::rand({M, 2}, torch::kFloat64).to(device), torch::zeros({M,2,N}, torch::kFloat64).to(device));
   tspan.r.index_put_({Slice(), 0}, 0.0);
-  //tspan.r.index_put_({Slice(), 1}, 2*((3.0-2.0*std::log(2.0))*y.r.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
-  tspan.index_put_({Slice(), 1}, 10.0);
+  tspan.r.index_put_({Slice(), 1}, (3.0-2.0*std::log(2.0))*y.r.index({Slice(), 2}));
+  //tspan.index_put_({Slice(), 1}, 10.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   janus::OptionsTeD options = janus::OptionsTeD(); //Initialize with default options
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //*options.EventsFcn = vdpEvents;
-  options.RelTol = torch::tensor({1e-13}, torch::kFloat64).to(device);
-  options.AbsTol = torch::tensor({1e-16}, torch::kFloat64).to(device);
+  options.RelTol = torch::tensor({1e-8}, torch::kFloat64).to(device);
+  options.AbsTol = torch::tensor({1e-8}, torch::kFloat64).to(device);
   //Create an instance of the Radau5 class
   TensorDual params = TensorDual(torch::empty({0,0}, torch::kFloat64).to(device), torch::zeros({M,2,N}, torch::kFloat64).to(device));
   //Run this multiple times to make sure there are no memory leaks
-  for ( int i=0; i < 10000; i++)
+  for ( int i=0; i < 1; i++)
   {
     std::cerr << "Running iteration " << i << std::endl;
     janus::RadauTeD r(vdpdyns, jac, tspan, y, options, params);   // Pass the correct arguments to the constructor
@@ -127,7 +131,49 @@ int main(int argc, char *argv[])
   std::vector<int> nouts(M);
   std::vector<std::vector<double>> x1s(M);
   std::vector<std::vector<double>> x2s(M);
-  for ( int i=0; i < M; i++) {
+
+  //Print out the dual of the final point
+  std::cout << "Final y=";
+  janus::print_dual(r.y);
+  //Check the dual parts using finite differences
+  for ( int j=0; j< 3; j++) {
+
+    auto yp = TensorDual(torch::zeros({M, D}, torch::kF64).to(device), torch::eye(D).repeat({M,1,1}).to(torch::kF64).to(device));
+    for (int i=0; i < M; i++) {
+      yp.r.index_put_({i, 0}, 2.0+0.0001*i);
+      yp.r.index_put_({i, 2}, mu+0.001*i);
+    }
+    yp.r.index_put_({Slice(), 1}, 2.0);
+    auto hp = 1.0e-8;
+    std::cout << "hp[" << j << "]=" << hp << std::endl;
+    yp.r.index_put_({Slice(), j}, yp.r.index({Slice(), j}) + hp);
+    //Integrate it forward
+    janus::RadauTeD rp(vdpdyns, jac, tspan, yp, options, params);   // Pass the correct arguments to the constructor
+    rp.solve();
+    auto ym = TensorDual(torch::zeros({M, D}, torch::kF64).to(device), torch::eye(D).repeat({M,1,1}).to(torch::kF64).to(device));
+    for (int i=0; i < M; i++) {
+      ym.r.index_put_({i, 0}, 2.0+0.0001*i);
+      ym.r.index_put_({i, 2}, mu+0.001*i);
+    }
+    ym.r.index_put_({Slice(), 1}, 2.0);
+    ym.r.index_put_({Slice(), j}, ym.r.index({Slice(), j}) - hp);
+    //Integrate it forward
+    janus::RadauTeD rm(vdpdyns, jac, tspan, ym, options, params);   // Pass the correct arguments to the constructor
+    rm.solve();
+    //Compute the finite difference
+    auto dy = (rp.y.r - rm.y.r)/(2.0*hp);
+    std::cout << "dy[" << j << "]=";
+    janus::print_tensor(dy.index({Slice(), j}));
+    std::cout << "dyd[" << j << "]=";
+    janus::print_tensor(r.y.d.index({Slice(), j}));
+    std::cerr << "rp.y=";
+    janus::print_dual(rp.y);
+    std::cerr << "rm.y=";
+    janus::print_dual(rm.y);
+    
+  }
+  
+  /*for ( int i=0; i < M; i++) {
     nouts[i] = r.nout.index({i}).item<int>();
     std::cout << "nouts[" << i << "]=" << nouts[i] << std::endl;
     x1s[i].resize(nouts[i]);
@@ -136,11 +182,11 @@ int main(int argc, char *argv[])
       x1s[i][j] = r.yout.r.index({i, 0, j}).item<double>();
       x2s[i][j] = r.yout.r.index({i, 1, j}).item<double>();
     }
-  }
+  }*/
 
 
   //Plot p1 vs p2
-  plt::figure();
+  /*plt::figure();
   for (int i=0; i < M; i++) {
     plt::plot(x1s[i], x2s[i]);
   }
@@ -149,9 +195,15 @@ int main(int argc, char *argv[])
   plt::ylabel("x2");
   plt::title("x2 versus x1");
   plt::save("/tmp/x1x2.png");
-  plt::close();  std::cout << "Final count=" << r.count << std::endl;
-  std::cout << "yout real=";
-  janus::print_tensor(r.yout.r);
+  plt::close();  std::cout << "Final count=" << r.count << std::endl;*/
+  //std::cout << "yout size=" << r.yout.r.sizes() << std::endl;
+  //for ( int i=0; i < M; i++) {
+  //  std::cout << "yout[" << i << "]=";
+  //  for ( int j=0; j < nouts[i]; j++) {
+  //    print_dual(r.yout.index({Slice(i, i+1), Slice(), Slice(j, j+1)}));
+  //  }
+ // }
+
 
   
 

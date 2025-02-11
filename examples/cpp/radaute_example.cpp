@@ -74,14 +74,14 @@ int main(int argc, char *argv[])
   torch::Tensor y = torch::zeros({M, 3}, torch::kF64).to(device);
   for (int i=0; i < M; i++) {
     y.index_put_({i, 0}, 2.0);
-    y.index_put_({i, 2}, 1.0+i*0.001);
+    y.index_put_({i, 2}, 1000.0+i*0.001);
   }
-  y.index_put_({Slice(), 1}, 0.0);
+  y.index_put_({Slice(), 1}, 2.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   torch::Tensor tspan = torch::rand({M, 2}, torch::kFloat64).to(device);
   tspan.index_put_({Slice(), 0}, 0.0);
-  //tspan.index_put_({Slice(), 1}, 1.5*((3.0-2.0*std::log(2.0))*y.index({Slice(), 2}) + 2.0*3.141592653589793/1000.0/3.0));
-  tspan.index_put_({Slice(), 1}, 10.0);
+  tspan.index_put_({Slice(), 1}, (3.0-2.0*std::log(2.0))*y.index({Slice(), 2}));
+  //tspan.index_put_({Slice(), 1}, 1.0);
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   //Create a tensor of size 2x2 filled with random numbers from a uniform distribution on the interval [0,1)
   janus::OptionsTe options = janus::OptionsTe(); //Initialize with default options
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
   //Create an instance of the Radau5 class
   torch::Tensor params = torch::empty({0}, torch::kFloat64).to(device);
   //Check for memory leaks
-  for ( int i=0; i < 10; i++) {
+  for ( int i=0; i < 1; i++) {
     std::cerr << "running iteration " << i << "for memory leaks" << std::endl;
     janus::RadauTe r(vdpdyns, jac, tspan, y, options, params);   
     r.solve();

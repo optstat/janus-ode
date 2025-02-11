@@ -8,7 +8,8 @@
 #include <typeinfo>
 #include <math.h>
 #include <optional>
-#include <janus/qrtedc.hpp>
+#include <janus/qrte.hpp> //Simple batch tensors
+#include <janus/qrtedc.hpp> //Full dual implementation for comparison
 #include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <iomanip>
@@ -16,6 +17,7 @@
 #include <algorithm>
 #include <janus/tensordual.hpp>
 #include <janus/janus_util.hpp>
+
 
 
 namespace janus
@@ -270,8 +272,10 @@ namespace janus
     bool EventsExist = false;
     bool UseParams;
 
-    std::vector<TensorMatDual> QT, R;
+    //std::vector<TensorMatDual> QT, R;
+    torch::Tensor LUs, Pivots, dAdp; //This is using the libtorch supplied QR decomposition
 
+  
     int nFcn, nJac, nStep, nAccpt, nRejct, nDec, nSol, nitMax;
     int nit;
     int nind1, nind2, nind3;
@@ -419,7 +423,7 @@ namespace janus
 
     void DecomRC(torch::Tensor &mask, int stage);
 
-    void Solvrad(torch::Tensor &mask, int stage);
+    void Solvrad(torch::Tensor &mask, int stage, bool calcDual=false);
     void Estrad(torch::Tensor &mask, int stage);
 
     std::tuple<TensorDual, TensorDual>

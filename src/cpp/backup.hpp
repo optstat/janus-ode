@@ -22,17 +22,20 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
       // Assume this is real
       //QT.resize(4);
       //R.resize(4);
-      LUs = torch::zeros({M, 4, Ny, Ny}, torch::kComplexDouble).to(device);
-      Pivots = torch::zeros({M, 4, Ny}, torch::kInt32).to(device);
-      dAdp = torch::zeros({M, 4, Ny, Ny, Nd}, torch::kComplexDouble).to(device); //The sensitivities of the Jacobian system
       // There are at most 4 QT and R matrices for the Radau method
       /*for (int i = 0; i < 4; i++)
       {
         QT[i] = TensorMatDual::createZero(torch::zeros({M, Ny, Ny}, torch::kComplexDouble), Nd).to_(device);
         R[i] = TensorMatDual::createZero(torch::zeros({M, Ny, Ny}, torch::kComplexDouble), Nd).to_(device);
       }*/
-      //Store the dual parts of the original matrices in sparse format
-
+      LU = torch::zeros({M, 4, Ny, Ny}, torch::kComplexDouble).to(device);
+      Pivots = torch::zeros({M, 4, Ny}, torch::kInt32).to(device);
+      ADual.clear(); // Remove any previous data
+      ADual.resize(M);
+      for (int i = 0; i < M; i++)
+      {
+        ADual[i].resize(4);
+      }
       statsCount = torch::zeros({M}, torch::kInt64).to(device);
       eventsCount = torch::zeros({M}, torch::kInt64).to(device);
       dynsCount = torch::zeros({M}, torch::kInt64).to(device);
@@ -455,10 +458,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
       hopt = h.clone();
       
       auto m6 = (TensorDual::einsum("mi,mi->mi", (t + h * 1.0001 - tfinal) , PosNeg) >= 0);
-      if ( m6.sizes().size() > 1)
-      {
-        m6.squeeze_(-1);  //Remove the last dimension since it is alway
-      }
+      m6.squeeze_(-1);  //Remove the last dimension since it is always 1
       if (m6.any().item<bool>())
       {
         h.index_put_({m6}, tfinal.index({m6}) - t.index({m6}));
@@ -674,8 +674,6 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         if (m1_1.eq(true_tensor).any().item<bool>())
         {
           auto jac = JacFcn(t.index({m1_1}), y.index({m1_1}), params);
-          std::cerr << "jac=";
-          print_dual(jac);
 
           Jac.index_put_({m1_1}, jac);
 
@@ -799,17 +797,9 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           //-------
           // Allocate enough memory just for the number of samples
           torch::Tensor m1_3 = m1 & NeedNewQR & (stage == NbrStg) & ~m1_continue;
-          print_tensor(m1_3);
           if (m1_3.eq(true_tensor).any().item<bool>())
           {
-            std::cerr << "Decomposing the matrices" << std::endl;
             DecomRC(m1_3, stage); // Decompose the matrices
-            std::cerr << "Decomposed the matrices" << std::endl;
-            //Print out the Q and R matrices
-            std::cerr << "LUs = ";
-            print_tensor(LUs);
-            std::cerr << "Pivots = ";
-            print_tensor(Pivots);
             auto m1_3nnz = m1_3.nonzero();
             for (int i = 0; i < m1_3nnz.numel(); i++)
             {
@@ -1008,7 +998,6 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           // We continue with all the samples for which
           // the outer loop has not converged
           // the while loop resides inside the stage loop
-          //In the algorithm this is the expensive portion
 
           while (m1_11_2 = (m1 & m1_11 & m1_11_2 & (stage == NbrStg) & ~m1_continue), m1_11_2.eq(true_tensor).any().item<bool>())
           {
@@ -1084,10 +1073,7 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               //% ------- SOLVE THE LINEAR SYSTEMS    % Line 1037
 
               // Check to see if the Scal values are all the same
-              //Here we avoid calculating the dual part during the loop
-              //to retain a low memory and computational cost
-              //The dual part plays no part in the calculation of the Scal values
-              Solvrad(m1_11_2_2, stage, true);
+              Solvrad(m1_11_2_2, stage);
               for (int i = 0; i < m1_11_2_2nnz.numel(); i++)
               {
                 int idx = m1_11_2_2nnz[i].item<int>();
@@ -1279,7 +1265,6 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             //% ------- IS THE ERROR SMALL ENOUGH ?
             if ((m1_12_1).eq(true_tensor).any().item<bool>())
             { // ------- STEP IS ACCEPTED
-              
               First.index_put_({m1_12_1}, false);
               auto m1_12_1nnz = m1_12_1.nonzero();
               for (int i = 0; i < m1_12_1nnz.numel(); i++)
@@ -1776,29 +1761,30 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         // Make it complex to keep the types consistent
         auto Bss = Bs.complex();
         //auto qrs = QRTeDC(Bss); // Perform the QR decomposition in a vector form
-        auto lu_result = torch::linalg_lu_factor(Bss.r);
-        auto LUl = std::get<0>(lu_result);
-        auto Pivotsl = std::get<1>(lu_result);
-        LUs.index_put_({mask, 0}, LUl);
-        Pivots.index_put_({mask, 0}, Pivotsl);
         //QT[0].index_put_({mask}, qrs.qt);
         //R[0].index_put_({mask}, qrs.r);
-        //std::cerr << "Ql="  << "\n";
-        //print_tensor(Ql);
-        //std::cerr << "qrs.qt.r=" << "\n";
-        //print_tensor(qrs.qt.r);
-        //assert(torch::allclose(Ql, qrs.qt.r, 1e-5, 1e-5) && "Ql and qrs.qt.r are not equal");
-        //std::cerr << "Rl="  << "\n";
-        //print_tensor(Rl);
-        //std::cerr << "qrs.r.r=" << "\n";
-        //print_tensor(qrs.r.r);
-        //assert(torch::allclose(Rl, qrs.r.r, 1e-5, 1e-5) && "Rl and qrs.r.r are not equal"); 
-        //Store the dual part of the original matrix in dual form
-        dAdp.index_put_({mask, 0}, Bss.d.clone());
-        std::cerr << "dAdp at index 0=" << "\n";
-        print_tensor(dAdp);
-        std::cerr << "Jacobian ";
-        print_dual(Jac);
+        //The result of lingalg_lu_factor is of dimension [M, N, N]
+        auto lu_result = torch::linalg_lu_factor(Bss.r);
+        auto LUl = std::get<0>(lu_result);
+        auto Pl = std::get<1>(lu_result);
+        LU.index_put_({mask, 0}, LUl);
+        Pivots.index_put_({mask, 0}, Pl);
+        //Store the dual part of the Bss matrix
+        //First compress it
+        /*auto nzidxs = mask.nonzero().squeeze(-1);
+        auto indices_accessor = nzidxs.accessor<int64_t, 1>();
+
+        for ( int i=0; i < nzidxs.size(0); i++)
+        {
+          auto idx = indices_accessor[i];
+          //Get rid of the batch dimension
+          auto BdssDual = Bss.d.index({idx}).squeeze(0).to(Bss.d.device());
+          ADual[idx][0]=BdssDual;
+          std::cerr << "BdssDual=";
+          print_tensor(BdssDual);
+          std::cerr << "ADual[" << idx << "][0]=";
+          print_tensor(ADual[idx][0]);
+        }*/
         // Check to make sure the diagonal of R is not zero
         //  Each sample has a different NbrStg.
         //  We loop through the stages and perform the QR decomposition
@@ -1844,16 +1830,22 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               //auto qrs = QRTeDC(Bs);
               //QT[q1 - 1].index_put_({m}, qrs.qt);
               //R[q1 - 1].index_put_({m}, qrs.r);
-              //Perform LU decomposition
+              //Perform LU decomposition on the real part only
               auto lu_result = torch::linalg_lu_factor(Bs.r);
               auto LUl = std::get<0>(lu_result);
-              auto Pivotsl = std::get<1>(lu_result);
-              LUs.index_put_({m, q1 - 1}, LUl);
-              Pivots.index_put_({m, q1 - 1}, Pivotsl);
-              //Store the dual part of the original matrix in dual form
-              dAdp.index_put_({m, q1 - 1}, Bs.d.clone());
-              std::cerr << "dAdp at index " << q1 - 1 << "=" << "\n";
-              print_tensor(dAdp);
+              auto Pl = std::get<1>(lu_result);
+              LU.index_put_({m, q1 - 1}, LUl);
+              Pivots.index_put_({m, q1 - 1}, Pl);
+              //Store the dual part of the Bss matrix
+              //First compress it
+              auto idxs = m.nonzero().squeeze(-1);
+              auto indices_accessor = idxs.accessor<int64_t, 1>();
+              for ( int i=0; i < idxs.size(0); i++)
+              {
+                auto idx = indices_accessor[i];
+                auto BdssDual = Bs.d.index({idx}).squeeze(0).to(Bs.d.device());
+                ADual[idx][q1-1]=BdssDual;
+              }
             }
           }
         }
@@ -1867,26 +1859,33 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           TensorDual valp = TensorDual::einsum("n,mi->mn", ValP, h.index({mask}).reciprocal());
           for (int q = 0; q < stage; q++)
           {
+            auto indxs = m.nonzero().squeeze(-1);
+            auto indxs_accessor = indxs.accessor<int64_t, 1>();
             for (int i = 0; i < indxs.size(0); i++)
             {
-              int indx = indxs.index({i}).item<int>();
+              int idx = indxs_accessor[i];
               if (MassFcn)
-                Bs = (valp.index(q) * Mass).unsqueeze(2) - Jac.index(indx);
+                Bs = (valp.index(q) * Mass).unsqueeze(2) - Jac.index({idx});
               else
-                Bs = valp.index(q).unsqueeze(2) - Jac.index(indx);
-              //Perform LU decomposition
+                Bs = valp.index(q).unsqueeze(2) - Jac.index({idx});
+              //QRTeDC qr{Bs}; // This is done in batch form
+              //QT[q].index_put_({indx}, qr.qt);
+              //R[q].index_put_({indx}, qr.r);
               auto lu_result = torch::linalg_lu_factor(Bs.r);
-              auto LUl = std::get<0>(lu_result);      
-              auto Pivotsl = std::get<1>(lu_result);
-              LUs.index_put_({indx, q}, LUl);
-              Pivots.index_put_({indx, q}, Pivotsl);
-              //Store the dual part of the original matrix in dual form
-              dAdp.index_put_({indx, q}, Bs.d.clone());
+              auto LUl = std::get<0>(lu_result);
+              auto Pl = std::get<1>(lu_result);
+              LU.index_put_({idx, q}, LUl);
+              Pivots.index_put_({idx, q}, Pl);
+              //Store the dual part in sparse format
+              auto BdssDual = Bs.d.index({idx}).squeeze(0).to(Bs.d.device());
+              ADual[i][q]=BdssDual;
+
             }
           }
         }
       }
     } // end of DecomRC
+
 
     //We need to calculate the dual parts
     //We can use the fact that
@@ -1899,46 +1898,26 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
     //In this case we will use the real parts stored in the LU decomposition
     //and the dual parts returned from the current dynamics
     inline torch::Tensor solve_LUdual(const torch::Tensor& LU, 
-                                      const torch::Tensor& Pivots,
+                                      const torch::Tensor& P,
                                       const torch::Tensor& dAdtheta,
                                       const torch::Tensor& dbdtheta,
                                       const torch::Tensor& x)
     {
-        assert(!torch::any(torch::isnan(dAdtheta)).item<bool>() && "dAdtheta has NAN");
-        std::cerr << "dAdtheta=";
-        print_tensor(dAdtheta);
         std::cerr << "dbdtheta=";
         print_tensor(dbdtheta);
-        std::cerr << "Pivots=";
-        print_tensor(Pivots);
-        //check for NAN
-        assert(!torch::any(torch::isnan(dbdtheta)).item<bool>() && "dbdtheta has NAN");
         std::cerr << "x=";
         print_tensor(x);
-        assert(!torch::any(torch::isnan(x)).item<bool>() && "x has NAN");
         auto dAdtheta_x = torch::einsum("ijk, j->ik", {dAdtheta, x});
         auto rhs = dbdtheta - dAdtheta_x;
-        //Now we can solve for the dual part
-        auto dXdtheta = torch::linalg_lu_solve(LU, Pivots, rhs.unsqueeze(-1)).squeeze(-1);
-        if (dXdtheta.norm().item<double>() > 10)
-        {
-          std::cerr << "dXdtheta has a large norm" << std::endl;
-        }
-        std::cerr << "dXdtheta=";
-        print_tensor(dXdtheta);
+        auto dXdtheta = torch::linalg_lu_solve(LU, P, rhs);
         return dXdtheta;
     }
-
-
 
     /*
      * SOLVRAD  Solves the linear system for the Radau collocation method.
      * This assumes that the samples are for a given stage only
-     * @param mask: A boolean tensor that selects the samples for this stage
-     * @param stage: The stage for which the samples are selected
-     * @param calcDual: A boolean that indicates if the dual part should be calculated
      */
-    inline void RadauTeD::Solvrad(torch::Tensor &mask, int stage, bool calcDual)
+    inline void RadauTeD::Solvrad(torch::Tensor &mask, int stage)
     {
       TensorDual valp;
 
@@ -1967,41 +1946,49 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
 
         auto zat0 = z.index({mask, Slice(), Slice(0, 1)}).squeeze(2);
+        auto idxs = mask.nonzero();
 
         // Apply QR decomposition in parallel
         // convert the zat0 to a complex tensor
         auto zat0c = zat0.complex();
-        //Do the same with QR decomposition and check the answer
-        auto LUl0 = LUs.index({mask, 0});
-        auto Pivotsl0 = Pivots.index({mask, 0});
-        auto sol0 = torch::linalg_lu_solve(LUl0, Pivotsl0, zat0c.r.unsqueeze(-1)).squeeze(-1);
-        std::cerr << "sol0=";
-        print_tensor(sol0);
-        int nNz = mask.nonzero().size(0);
-        auto sol0qrdual = torch::zeros({M, Ny, Nd}, torch::kComplexDouble).to(device);
-        //Now we can solve for the dual part
-        if ( calcDual)
+        auto zat0r = zat0c.r.unsqueeze(-1);
+        //auto QT0 = QT[0].index({mask});
+        //auto R0 = R[0].index({mask});
+        //auto sol0 = QRTeDC::solvev(QT0, R0, zat0c);
+        auto LU0 = LU.index({mask, 0});
+        auto P0 = Pivots.index({mask, 0});
+        auto sol0_real = torch::linalg_lu_solve(LU0, P0, zat0r).squeeze(-1);
+        z.r.index_put_({mask, Slice(), 0}, torch::real(sol0_real));
+
+        //We need to calculate the dual parts
+        //We can use the fact that
+        //d (A(theta)x(theta)=b(theta))/dtheta=
+        //(dA/dtheta) x + A dX/dtheta = db/dtheta
+        //which can be rewritten as
+        //A dX/dtheta = db/dtheta - dA/dtheta x
+        //This is in the form where we can use the LU decomposition for just the real part
+        //to calculate the dual part
+        //In this case we will use the real parts stored in the LU decomposition
+        //and the dual parts returned from the current dynamics
+        /*auto nzidx = mask.nonzero().squeeze(-1);
+        auto nnz = nzidx.size(0);
+        auto accessor = nzidx.accessor<int64_t, 1>();
+        //The following algorithm reduces the impact of 
+        //the memory footprint of the dual matrices at the expense of looping through the samples
+        for (int i = 0; i < nnz; i++)
         {
-          auto nnzindxs = mask.nonzero().squeeze(-1).cpu();
-          auto accessor = nnzindxs.accessor<long, 1>();
+          int idx = accessor[i];
+          //The matrix is stored in sparse format so convert to dense
+          std::cerr << "ADual[idx][0]=";
+          print_tensor(ADual[idx][0]);
+          auto dAdtheta = ADual[idx][0];
+          auto dbdtheta = zat0c.d.index({idx});//The dual dimension becomes the batch dimension
+          auto dXdtheta = solve_LUdual(LU0.index({idx}), P0.index({idx}), dAdtheta, dbdtheta, sol0_real.index({idx}).squeeze(-1));
+          std::cerr << "dXdtheta=";
+          print_tensor(dXdtheta);
+          z.d.index_put_({idx}, dXdtheta);
+        }*/
 
-          for (int i = 0; i < nnzindxs.size(0); i++)
-          {
-            int indx = accessor[i];
-            //Retrieve the dual part of the original matrix
-            auto dAdtheta = dAdp.index({indx, 0});
-            auto dbdtheta = zat0c.d.index({indx});
-            auto x = sol0.index({indx});
-            auto dXdtheta = solve_LUdual(LUl0.index({indx}), Pivotsl0.index({indx}), dAdtheta, dbdtheta, x);
-            //Store the dual part of the solution
-            sol0qrdual.index_put_({indx}, dXdtheta);
-          }
-        }
-        
-        
-        
-
-        z.index_put_({mask, Slice(), Slice(0,1)}, TensorDual(torch::real(sol0), torch::real(sol0qrdual)));
         // check for NaN
         if (torch::any(torch::isnan(z.r)).eq(true_tensor).item<bool>())
         {
@@ -2052,35 +2039,29 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             TensorDual imaginary_part = z3;
 
             TensorDual tempComplex = TensorDual(torch::complex(real_part.r, imaginary_part.r), torch::complex(real_part.d, imaginary_part.d));
-            //Do the same with LU decomposition and check the answer
-            auto LUlq1 = LUs.index({indxs, q1 - 1});
-            auto Pivotslq1 = Pivots.index({indxs, q1 - 1});
-            auto sol_qr = torch::linalg_lu_solve(LUlq1, Pivotslq1, tempComplex.r.unsqueeze(-1)).squeeze(-1);
-            std::cerr << "sol_qr=";
-            print_tensor(sol_qr);
-            int nnz = nzindxs.size(0);
-            auto sol_qrdual = torch::zeros({nnz, Ny, Nd}, torch::kComplexDouble).to(device);
-            if ( calcDual)
+            //auto QTq1 = QT[q1 - 1].index({indxs});
+            //auto Rq1 = R[q1 - 1].index({indxs});
+            //auto sol = QRTeDC::solvev(QTq1, Rq1, tempComplex);
+            auto LUq = LU.index({indxs, q1 - 1});
+            auto Pq = Pivots.index({indxs, q1 - 1});
+            auto tempComplexr = tempComplex.r.unsqueeze(-1);
+            //Calculate the real solution
+            auto solr = torch::linalg_lu_solve(LUq, Pq, tempComplexr);
+            z.r.index_put_({indxs, Slice(), Slice(q2 - 1, q2)}, at::real(solr));
+            /*auto nzidxs = indxs.nonzero().squeeze(-1);
+            auto accessor = nzidxs.accessor<int64_t, 1>();
+            //Calculate the dual solution using the LU decomposition trick 
+            for (int i=0; i < nzidxs.size(0); i++)
             {
-              //Now we can solve for the dual part
-              auto nnzindxs = indxs.nonzero().squeeze(-1).cpu();
-              auto accessor = nnzindxs.accessor<long, 1>();
-              for (int i = 0; i < nnzindxs.size(0); i++)
-              {
-                int indx = accessor[i];
-                //Retrieve the dual part of the original matrix
-                auto dAdtheta = dAdp.index({indx, q1 - 1});
-                auto dbdtheta = tempComplex.d.index({indx}).to(tempComplex.r.device());
-                auto x = sol_qr.index({indx});
-                auto dXdtheta = solve_LUdual(LUlq1.index({indx}), Pivotslq1.index({indx}), dAdtheta, dbdtheta, x);
-                //Store the dual part of the solution
-                sol_qrdual.index_put_({i}, dXdtheta);
-              }
-            }
-            z.index_put_({nzindxs, Slice(), Slice(q2 - 1, q2)}, TensorDual(torch::real(sol_qr), torch::real(sol_qrdual)));
-            z.index_put_({nzindxs, Slice(), Slice(q3 - 1, q3)}, TensorDual(torch::imag(sol_qr), torch::imag(sol_qrdual)));
+              int idx = accessor[i];
+              auto dAdtheta = ADual[i][q].to_dense();
+              auto dbdtheta = tempComplex.d.index({idx});//The dual dimension becomes the batch dimension
+              auto dXdtheta = solve_LUdual(LUq.index({idx}), Pq.index({idx}), dAdtheta, dbdtheta, solr.index({idx}).squeeze(-1));
+              z.d.index_put_({idx, Slice(), q3-1}, at::real(dXdtheta));
+            }*/
 
-            
+            //z.index_put_({nzindxs, Slice(), Slice(q3 - 1, q3)}, TensorMatDual(at::imag(solm.r), at::imag(solm.d)));
+
             // check for Nan in the solution
             if (torch::any(torch::isnan(z.r)).item<bool>())
             {
@@ -2106,33 +2087,27 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
             z.index_put_({nzindxs, Slice(), q - 1}, z.index({nzindxs, Slice(), q - 1}) -
                                                         valp.index({nzindxs, Slice(), q - 1}) * Mw.index({nzindxs, Slice(), q - 1}));
             auto qrin = z.index({nzindxs, Slice(), q - 1}).squeeze(2);
-            //Do the same with QR decomposition and check the answer
-            auto LUlq = LUs.index({m1, q - 1});
-            auto Pivotslq = Pivots.index({m1, q - 1});
-            auto sol_lu = torch::linalg_lu_solve(LUlq, Pivotslq, qrin.r.unsqueeze(-1)).squeeze(-1);
-            auto nnzindxs = m1.nonzero().squeeze(-1).cpu();
-            int nnz = nnzindxs.size(0);
-            auto sol_qrdual = torch::zeros({nnz, Ny, Nd}, torch::kComplexDouble).to(device);
-
-            auto accessor = nnzindxs.accessor<long, 1>();
-            for (int i = 0; i < nnzindxs.size(0); i++)
-            {
-              int indx = accessor[i];
-              //Retrieve the dual part of the original matrix
-              auto dAdtheta = dAdp.index({indx, q - 1});
-              auto dbdtheta = qrin.d.index({indx}).to(qrin.r.device());
-              auto x = sol_lu.index({indx});
-              auto dXdtheta = solve_LUdual(LUlq.index({indx}), Pivotslq.index({indx}), dAdtheta, dbdtheta, x);
-              std::cerr << "dXdtheta=";
-              print_tensor(dXdtheta);
-              //Store the dual part of the solution
-              sol_qrdual.index_put_({i}, dXdtheta);
-            }
-
+            //auto QTq = QT[q - 1].index({m1});
+            //auto Rq = R[q - 1].index({m1});
+            //auto sol = QRTeDC::solvev(QTq, Rq, qrin);
             // auto sol = qrs[q - 1].solvev(qrin);
-            //z.index_put_({nzindxs, Slice(), q - 1}, sol);
-            z.r.index_put_({nzindxs, Slice(), q - 1}, sol_lu);
-            z.d.index_put_({nzindxs, Slice(), q - 1}, sol_qrdual);
+            //Solve for the real part using LU decomposition
+            auto LUq = LU.index({m1, q - 1});
+            auto Pq = Pivots.index({m1, q - 1});
+            int M = m1.nonzero().size(0);
+            auto qrinr = qrin.r;
+
+            auto solr = torch::linalg_lu_solve(LUq, Pq, qrinr);
+            z.r.index_put_({nzindxs, Slice(), q - 1}, solr);
+            //Now solve for the dual part
+            /*for (int i=0; i < nzindxs.size(0); i++)
+            {
+              int indx = nzindxs.index({i}).item<int>();
+              auto dAdtheta = ADual[i][q].to_dense().to(device);
+              auto dbdtheta = qrin.d.index({indx}).transpose(0, 1);//The dual dimension becomes the batch dimension
+              auto dXdtheta = solve_LUdual(LUq.index({indx}), Pq.index({indx}), dAdtheta, dbdtheta, solr.index({indx}).squeeze(-1));
+              z.d.index_put_({indx, Slice(), q - 1}, dXdtheta);
+            }*/
           }
         }
       }
@@ -2160,35 +2135,17 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         auto f0ptemp = (f0.index({m1}) + temp.index({m1})); // This has dimension [M, Ny]
 
         // convert to complex
-        auto f0ptComplex = f0ptemp.complex();
-        //Do the same with LU decomposition and check the answer
-        auto LUl0 = LUs.index({m1, 0});
-        auto Pivotsl0 = Pivots.index({m1, 0});
-        auto err_vluc = torch::linalg_lu_solve(LUl0, Pivotsl0, f0ptComplex.r.unsqueeze(-1)).squeeze(-1);
-        auto err_vlu = torch::real(err_vluc);
-        int nnz = m1.nonzero().size(0);
-        //Solve for the dual part
-        auto err_vludual = torch::zeros({nnz, Ny, Nd}, torch::kComplexDouble).to(device);
-        //Now we can solve for the dual part
-        auto nnzindxs = m1.nonzero().squeeze(-1).cpu();
-        auto accessor = nnzindxs.accessor<long, 1>();
-        for (int i = 0; i < nnzindxs.size(0); i++)
-        {
-          int indx = accessor[i];
-          //Retrieve the dual part of the original matrix
-          auto dAdtheta = dAdp.index({indx, 0});
-          auto dbdtheta = f0ptComplex.d.index({indx});
-          auto x = err_vluc.index({indx});
-          auto dXdtheta = solve_LUdual(LUl0.index({indx}), Pivotsl0.index({indx}), dAdtheta, dbdtheta, x);
-          std::cerr << "dXdtheta=";
-          print_tensor(dXdtheta);
-          //Store the dual part of the solution
-          err_vludual.index_put_({i}, dXdtheta);
-        }
-        std::cerr << "err_vludual=";
-        print_tensor(err_vludual);
-        auto err_v = TensorDual(err_vlu, err_vludual).real();
-
+        auto f0ptComplex = f0ptemp.complex().unsqueeze(-1);
+        //auto QT0 = QT[0].index({m1});
+        //auto R0 = R[0].index({m1});
+        //auto err_v = QRTeDC::solvev(QT0, R0, f0ptComplex).real();
+        //Only need the real part here
+        auto LU0 = LU.index({m1, 0});
+        auto P0 = Pivots.index({m1, 0});
+        auto err_v = torch::real(torch::linalg_lu_solve(LU0, P0, f0ptComplex.r).squeeze(-1));
+        std::cerr << "err_v=";
+        print_tensor(err_v);
+        
         err.index_put_({m1}, (err_v / Scal.index({m1})).normL2());
         // For torch::max the broadcasting is automatic
         auto SqrtNyd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(err.index({m1})) , SqrtNy);
@@ -2204,36 +2161,17 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           auto errptemp = (err_v + temp.index({m1_1}));
           // convert to complex
           auto errpComplex = errptemp.complex();
+          auto errpComplexr = errpComplex.r.unsqueeze(-1);
           auto idxsm1 = m1_1.nonzero();
-          //Do the same with LU decomposition and check the answer
-          auto LUlm1_1 = LUs.index({m1_1, 0});
-          auto Pivotslm1_1 = Pivots.index({m1_1, 0});
-          auto errv_outluc = torch::linalg_lu_solve(LUlm1_1, Pivotslm1_1, errpComplex.r.unsqueeze(-1)).squeeze(-1);
-          //Solve for the dual part
-          auto errv_outlu = torch::real(errv_outluc);
-          int nnz = m1_1.nonzero().size(0);
-          auto errv_outludual = torch::zeros({nnz, Ny, Nd}, torch::kComplexDouble).to(device);
-          //Now we can solve for the dual part
-          auto nnzindxs = m1_1.nonzero().squeeze(-1).cpu();
-          auto accessor = nnzindxs.accessor<long, 1>();
-          for (int i = 0; i < nnzindxs.size(0); i++)
-          {
-            int indx = accessor[i];
-            //Retrieve the dual part of the original matrix
-            auto dAdtheta = dAdp.index({indx, 0});
-            auto dbdtheta = errpComplex.d.index({indx});
-            auto x = errv_outluc.index({indx});
-            auto dXdtheta = solve_LUdual(LUlm1_1.index({indx}), Pivotslm1_1.index({indx}), dAdtheta, dbdtheta, x);
-            std::cerr << "dXdtheta=";
-            print_tensor(dXdtheta);
-            //Store the dual part of the solution
-            errv_outludual.index_put_({i}, dXdtheta);
-          }
-          std::cerr << "errv_outludual=";
-          print_tensor(errv_outludual);
-          auto errv_out = TensorDual(errv_outlu, errv_outludual).real();
+          //auto QTm1_1 = QT[0].index({m1_1});
+          //auto Rm1_1 = R[0].index({m1_1});
+
+          //auto errv_out = QRTeDC::solvev(QTm1_1, Rm1_1, errpComplex).real();
+          auto LU0 = LU.index({m1_1, 0});
+          auto P0 = Pivots.index({m1_1, 0});
+          auto errv_out = torch::real(torch::linalg_lu_solve(LU0, P0, errpComplexr).squeeze(-1));
+
           err.index_put_({m1_1}, (errv_out / Scal.index({m1_1})).normL2());
-          //err.index_put_({m1_1}, torch::max((err.index({m1_1}) / SqrtNy), oneEmten));
           // For torch::max the broadcasting is automatic
           auto SqrtNyd = TensorDual::einsum("mi,->mi", TensorDual::ones_like(err.index({m1_1})) , SqrtNy);
           err.index_put_({m1_1}, max((err.index({m1_1}) / SqrtNyd), oneEmten));

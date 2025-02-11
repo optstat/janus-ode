@@ -19,8 +19,8 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
       // Storage space for QT and R matrices
       // Assume this is real
-      //QT = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
-      //R = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
+      QT = torch::zeros({M, 4, Ny, Ny}, torch::kComplexDouble).to(device);
+      R = torch::zeros({M, 4, Ny, Ny}, torch::kComplexDouble).to(device);
       LU = torch::zeros({M, MaxNbrStg.item<int>(), Ny, Ny}, torch::kComplexDouble).to(device);
       Pivots = torch::zeros({M, MaxNbrStg.item<int>(), Ny}, torch::kInt32).to(device);
       statsCount = torch::zeros({M}, torch::kInt64).to(device);
@@ -1449,8 +1449,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
       // NbrStg for each sample is globally available and there is no need to calculate it again
       torch::Tensor Bs, valp;
-      // Pivots.clear();
-      // LUs.clear();
       // There is one vector of QR decomposition per sample
 
       // Filter further to get the samples for which this stage is valid
@@ -1490,6 +1488,12 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         auto LUl = std::get<0>(lu_result);
         LU.index_put_({mask, q}, LUl);
         Pivots.index_put_({mask, q}, Pivotl);
+        //Perform QR decomposition using libtorch
+        auto qr_result = torch::linalg_qr(Bs, "reduced");
+        auto Qtl = std::get<0>(qr_result);
+        auto Rl = std::get<1>(qr_result);
+        QT.index_put_({mask, q}, Qtl);
+        R.index_put_({mask, q}, Rl);
       }
     } // end of DecomRC
 
@@ -1503,8 +1507,6 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
 
       // NbrStg for each sample is globally available and there is no need to calculate it again
       torch::Tensor Bs, valp;
-      // Pivots.clear();
-      // LUs.clear();
       // There is one vector of QR decomposition per sample
 
       if (RealYN)
@@ -1554,15 +1556,21 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         R.index_put_({mask, 0}, qrs.r);*/
         //Replace using LU decomposition
         auto lu_result = torch::linalg_lu_factor(Bss);
-        auto Pl = std::get<1>(lu_result);
+        //auto Pl = std::get<1>(lu_result);
         //std::cerr << "Pl=" << Pl << std::endl;
-        auto LUl = std::get<0>(lu_result);
+        //auto LUl = std::get<0>(lu_result);
         //std::cerr << "LUl=" << LUl << std::endl;
         //print an error if not succesful
-        //auto LUl = std::get<0>(lu_result);
-        //auto Pl = std::get<1>(lu_result);
+        auto LUl = std::get<0>(lu_result);
+        auto Pl = std::get<1>(lu_result);
+        //Solve using QR decomposition libtorch
         LU.index_put_({mask, 0}, LUl);
         Pivots.index_put_({mask, 0}, Pl);
+        auto qr_result = torch::linalg_qr(Bss);
+        auto Qtl = std::get<0>(qr_result);
+        auto Rl = std::get<1>(qr_result);
+        QT.index_put_({mask, 0}, Qtl);
+        R.index_put_({mask, 0}, Rl);
         // Each sample has a different NbrStg.
         // We loop through the stages and perform the QR decomposition
         // if the stage is present in the masked sample
@@ -1606,6 +1614,12 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               //Store the results
               LU.index_put_({indxs, q1 - 1}, LUl);
               Pivots.index_put_({indxs, q1 - 1}, Pl);
+              //Perform QR decomposition using libtorch
+              auto qr_result = torch::linalg_qr(Bs);
+              auto Qtl = std::get<0>(qr_result);
+              auto Rl = std::get<1>(qr_result);
+              QT.index_put_({indxs, q1 - 1}, Qtl);
+              R.index_put_({indxs, q1 - 1}, Rl);
             }
           }
       }
@@ -1635,6 +1649,12 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
               //Store the results
               LU.index_put_({indx, q}, LUl);
               Pivots.index_put_({indx, q}, Pl);
+              //Perform QR decomposition using libtorch
+              auto qr_result = torch::linalg_qr(Bs, "reduced");
+              auto Qtl = std::get<0>(qr_result);
+              auto Rl = std::get<1>(qr_result);
+              QT.index_put_({indx, q}, Qtl);
+              R.index_put_({indx, q}, Rl);
             }
           }
       }
@@ -1671,7 +1691,15 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         auto solq = torch::linalg_lu_solve(LU.index({mask, q}), 
                                            Pivots.index({mask, q}), 
                                            zatq);
-
+        //Solve using QR decomposition using the stored matrices QT and R
+        auto QTl = QT.index({mask, q});
+        auto Qtb = torch::bmm(QTl.transpose(-2, -1), zatq);
+        auto Rl = R.index({mask, q});
+        auto solq_qr = torch::linalg_solve_triangular(Rl, 
+                                                   Qtb, 
+                                                   /*upper=*/true, 
+                                                   /*left=*/true);
+        //assert(torch::allclose(solq, solq_lu));
         z.index_put_({mask, Slice(), q}, torch::real(solq));
         // check for NaN
         if (torch::any(torch::isnan(z)).item<bool>())
@@ -1726,6 +1754,15 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         auto sol0=torch::linalg_lu_solve(LUl, 
                                          Pl,
                                          zat0c);
+        //Solve using QR decomposition using the stored matrices QT and R
+        auto QTl = QT.index({mask, 0});
+        auto Qtb = torch::bmm(QTl.transpose(-2, -1), zat0c);
+        auto Rl = R.index({mask, 0});
+        auto sol0_qr = torch::linalg_solve_triangular(Rl, 
+                                                    Qtb, 
+                                                    /*upper=*/true, 
+                                                    /*left=*/true);
+        //assert(torch::allclose(sol0, sol0_lu));
         if (sol0.size(0) == 1)
         {
           sol0 = sol0.squeeze(-1);
@@ -1788,13 +1825,29 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             {
               tempComplex = tempComplex.unsqueeze(-1);
             }
-            auto LUl = LU.index({mask, q1 - 1}).contiguous();
-            auto Pl =  Pivots.index({mask, q1 - 1}).contiguous();
+            auto LUl = LU.index({mindxs, q1 - 1}).contiguous();
+            auto Pl =  Pivots.index({mindxs, q1 - 1}).contiguous();
 
             //auto sol = QRTeC::solvev(QT.index({indxs, q1 - 1}), R.index({indxs, q1 - 1}), tempComplex);
             auto sol = torch::linalg_lu_solve(LUl, 
                                       Pl, 
                                       tempComplex);
+            //Solve using QR decomposition using the stored matrices QT and R
+            auto QTl = QT.index({mindxs, q1 - 1});
+            std::cerr << "QTl=";
+            print_tensor(QTl);
+            std::cerr << "tempComplex=";
+            print_tensor(tempComplex);
+            auto Qtb = torch::bmm(QTl.transpose(-2,-1), tempComplex);
+            std::cerr << "Qtb=";
+            print_tensor(Qtb);
+            auto Rl = R.index({mindxs, q1 - 1});
+            auto sol_qr = torch::linalg_solve_triangular(Rl, Qtb, /*upper=*/true, /*left*/ true);
+            std::cerr << "sol=";
+            print_tensor(sol);
+            std::cerr << "sol_qr=";
+            print_tensor(sol_qr);
+            //assert(torch::allclose(sol, sol_lu));
             if (sol.size(0) == 1)
             {
               sol = sol.squeeze(-1);
@@ -1831,6 +1884,12 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
             auto sol = torch::linalg_lu_solve(LU.index({m1, Slice(q - 1,q)}), 
                                               Pivots.index({m1, Slice(q - 1,q)}), 
                                               qrin);
+            //Solve using QR decomposition using the stored matrices QT and R
+            auto QTl = QT.index({m1, q - 1});
+            auto Qtb = torch::bmm(QTl.transpose(-2, -1), qrin);
+            auto Rl = R.index({m1, q - 1});
+            auto sol_qr = torch::linalg_solve_triangular(Rl, Qtb, /*upper=*/true, /*left=*/true);
+            //assert(torch::allclose(sol, sol_lu));
             // auto sol = qrs[q - 1].solvev(qrin);
             z.index_put_({nzindxs, Slice(), q - 1}, sol);
         }
@@ -1868,6 +1927,12 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
         auto err_v = torch::real(torch::linalg_lu_solve(LU.index({m1, 0}), 
                                                         Pivots.index({m1, 0}), 
                                                         f0ptComplex));
+        //Solve using QR decomposition using the stored matrices QT and R
+        auto Qtl = QT.index({m1, 0});
+        auto Rl = R.index({m1, 0});
+        auto Qtb = torch::bmm(Qtl.transpose(-2, -1), f0ptComplex);
+        auto err_v_qr = torch::linalg_solve_triangular(Rl, Qtb, /*upper=*/true, /*left=*/true);
+        //assert(torch::allclose(err_v, err_v_lu));
         std::cerr << "err_v sizes =" << err_v.sizes() << std::endl;
         if (err_v.size(0) == 1)
         {
@@ -1901,6 +1966,12 @@ inline RadauTe::RadauTe(OdeFnType OdeFcn, JacFnType JacFn, torch::Tensor &tspan,
           auto errv_out = torch::real(torch::linalg_lu_solve(LU.index({m1_1, 0}), 
                                                              Pivots.index({m1_1, 0}),
                                                              errpComplex));
+          //Solve using QR decomposition using the stored matrices QT and R
+          auto Qtl = QT.index({m1_1, 0});
+          auto Rl = R.index({m1_1, 0});
+          auto Qtb = torch::bmm(Qtl.transpose(-2, -1), errpComplex);
+          auto errv_out_qr = torch::linalg_solve_triangular(Rl, Qtb, /*upper=*/true, /*left=*/true);
+          //assert(torch::allclose(errv_out, errv_out_lu));
           std::cerr << "errv_out sizes after LU solve call " << errv_out.sizes() << std::endl;
           if (errv_out.size(0) == 1)
           {
