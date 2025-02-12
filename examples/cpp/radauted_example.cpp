@@ -3,6 +3,7 @@
 #include <janus/tensordual.hpp>
 #include <janus/janus_util.hpp>
 #include "matplotlibcpp.h"
+#include <cmath>
 
 namespace plt = matplotlibcpp;
 
@@ -17,6 +18,7 @@ int M = 1;
 int D = 3;
 int N = 3;
 
+
 TensorDual vdpdyns(const TensorDual& t, const TensorDual& y, const TensorDual& params) {
   TensorDual ydot = TensorDual::zeros_like(y);
   auto yc = y.clone();
@@ -29,23 +31,70 @@ TensorDual vdpdyns(const TensorDual& t, const TensorDual& y, const TensorDual& p
 }
 
 
+torch::Tensor jac_r(const torch::Tensor&t,  //Has dimension [M,1]
+                  const torch::Tensor& y, //Has dimension [M,D]
+                  const torch::Tensor& params) {
+  //Replicate y so that it produces a jacobian for each batch while retaining the computational graph
+  //we want to produce a jacobian of size [M,D,D]
+  auto jac  = torch::zeros({y.size(0), y.size(1), y.size(1)}, torch::kFloat64).to(y.device());
+  jac.index_put_({Slice(), 0, 1}, 1.0);
+  //There are only three real entries in the jacobian
+  auto j10r = -2*y.index({Slice(), Slice(2,3)})*y.index({Slice(), Slice(0,1)})*y.index({Slice(), Slice(1,2)})-1.0;
+  jac.index_put_({Slice(), Slice(1,2), Slice(0,1)}, j10r.unsqueeze(2));
+  auto j11r = y.index({Slice(), Slice(2,3)})*(1.0-y.index({Slice(), Slice(0,1)}).square());
+  jac.index_put_({Slice(), Slice(1,2), Slice(1,2)}, j11r.unsqueeze(2));
+  auto j12r = (1.0-y.index({Slice(), Slice(0,1)}).square())*y.index({Slice(), Slice(1,2)});
+  jac.index_put_({Slice(), Slice(1,2), Slice(2,3)}, j12r.unsqueeze(2));
+  return jac; //Return the through copy elision
 
-TensorMatDual jac_dual(const TensorDual& t, const TensorDual& y, 
+}
+
+
+
+/**
+ * Jacobian determination function
+ */
+TensorMatDual jac(const TensorDual& t, const TensorDual& y, 
                   const TensorDual& params) {
   int M = y.r.size(0);
   int D = y.r.size(1);
   int N = y.d.size(2);
   
   TensorMatDual jac = TensorMatDual(torch::zeros({M,D,D}, torch::kFloat64).to(y.device()),
-                              torch::zeros({M,D,D,N}, torch::kFloat64).to(y.device()));
-  jac.index_put_({Slice(), 0, 1}, 1.0);
-  auto yc = y.clone();
-  auto j10 = -2*yc.index({Slice(), Slice(2,3)})*yc.index({Slice(), Slice(0,1)})*yc.index({Slice(), Slice(1,2)})-1.0;
-  jac.index_put_({Slice(), Slice(1,2), Slice(0,1)}, j10.unsqueeze(2));
-  auto j11 = yc.index({Slice(), Slice(2,3)})*(1.0-yc.index({Slice(), Slice(0,1)}).square());
-  jac.index_put_({Slice(), Slice(1,2), Slice(1,2)}, j11.unsqueeze(2));
-  auto j12 = (1.0-yc.index({Slice(), Slice(0,1)}).square())*yc.index({Slice(), Slice(1,2)});
-  jac.index_put_({Slice(), Slice(1,2), Slice(2,3)}, j12.unsqueeze(2));
+                                    torch::zeros({M,D,D,N}, torch::kFloat64).to(y.device()));
+
+
+    auto tr = t.r;
+    auto yr = y.r;
+    auto pr = params.r;
+    jac.r = jac_r(t.r, y.r, params.r);   
+    std::cerr << "jac.r=";
+    janus::print_tensor(jac.r);
+    //This is slow but is it safer
+    for (int i=0; i < D; i++) {
+      //Get the machine epsilon
+      double epsilon = std::numeric_limits<double>::epsilon();
+      auto h = sqrt(epsilon);
+      auto yph = yr.clone();
+      yph.index_put_({Slice(), i}, yph.index({Slice(), i}) + h);
+      auto yp2h = yr.clone();
+      yp2h.index_put_({Slice(), i}, yp2h.index({Slice(), i}) + 2.0*h);
+      auto ymh = yr.clone();
+      ymh.index_put_({Slice(), i}, ymh.index({Slice(), i}) - h);
+      auto ym2h = yr.clone();
+      ym2h.index_put_({Slice(), i}, ym2h.index({Slice(), i}) - 2.0*h);
+      for ( int j=0; j < D; j++) {
+        auto jacph = jac_r(t.r, yph, params.r);
+        auto jacp2h = jac_r(t.r, yp2h, params.r);
+        auto jacmh = jac_r(t.r, ymh, params.r);
+        auto jacm2h = jac_r(t.r, ym2h, params.r);
+        //Use a four point stencil to estimate the derivative
+        auto dJ_dy = (-jacp2h + 8.0*jacph - 8.0*jacmh + jacm2h)/12.0/h;
+        auto dJ_dp = torch::einsum("m,mk->mk", {dJ_dy.index({Slice(), i, j}), y.d.index({Slice(), i})});
+        jac.d.index_put_({Slice(), i, j, Slice()}, dJ_dp);
+      }
+    }
+  
   return jac; //Return the through copy elision
 }
 
@@ -79,7 +128,7 @@ auto matOne = TensorMatDual(torch::empty({M, 1, 1}, torch::kDouble).to(device),
 int main(int argc, char *argv[])
 {
 
-  double mu = 3.0;
+  double mu = 10.0;
 
   void (*pt)(const torch::Tensor&) = janus::print_tensor;
   void (*pd)(const TensorDual&) = janus::print_dual;
@@ -166,10 +215,6 @@ int main(int argc, char *argv[])
     janus::print_tensor(dy.index({Slice(), j}));
     std::cout << "dyd[" << j << "]=";
     janus::print_tensor(r.y.d.index({Slice(), j}));
-    std::cerr << "rp.y=";
-    janus::print_dual(rp.y);
-    std::cerr << "rm.y=";
-    janus::print_dual(rm.y);
     
   }
   

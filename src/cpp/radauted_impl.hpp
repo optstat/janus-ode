@@ -1890,10 +1890,10 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
 
     //We need to calculate the dual parts
     //We can use the fact that
-    //d (A(theta)x(theta)=b(theta))/dtheta=
-    //(dA/dtheta) x + A dX/dtheta = db/dtheta
+    //d/dtheta (A(theta)*x(theta)=b(theta)=
+    //(dA/dtheta)*x + A*dx/dtheta = db/dtheta
     //which can be rewritten as
-    //A dX/dtheta = db/dtheta - dA/dtheta x
+    //A*dX/dtheta = db/dtheta - dA/dtheta*x
     //This is in the form where we can use the LU decomposition for just the real part
     //to calculate the dual part
     //In this case we will use the real parts stored in the LU decomposition
@@ -1904,6 +1904,11 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
                                       const torch::Tensor& dbdtheta,
                                       const torch::Tensor& x)
     {
+        assert(LU.dim() == 3 && "LU should be a 3D tensor"); //{M, Ny, Ny}
+        assert(Pivots.dim() == 2 && "Pivots should be a 2D tensor"); //{M, Ny}
+        assert(dAdtheta.dim() == 4 && "dAdtheta should be a 4D tensor"); //{M, Ny, Ny, Nd}
+        assert(dbdtheta.dim() == 3 && "dbdtheta should be a 3D tensor"); //{M, Ny, Nd}
+        assert(x.dim() == 2 && "x should be a 2D tensor"); //{M, Ny}
         assert(!torch::any(torch::isnan(dAdtheta)).item<bool>() && "dAdtheta has NAN");
         std::cerr << "dAdtheta=";
         print_tensor(dAdtheta);
@@ -1916,17 +1921,18 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         std::cerr << "x=";
         print_tensor(x);
         assert(!torch::any(torch::isnan(x)).item<bool>() && "x has NAN");
-        auto dAdtheta_x = torch::einsum("ijk, j->ik", {dAdtheta, x});
+        auto dAdtheta_x = torch::einsum("mijk, mj->mik", {dAdtheta, x});
         auto rhs = dbdtheta - dAdtheta_x;
         //Now we can solve for the dual part
-        auto dXdtheta = torch::linalg_lu_solve(LU, Pivots, rhs.unsqueeze(-1)).squeeze(-1);
-        if (dXdtheta.norm().item<double>() > 10)
+        auto dxdtheta = torch::linalg_lu_solve(LU, Pivots, rhs.unsqueeze(-1)).squeeze(-1);
+        if (dxdtheta.norm().item<double>() > 10)
         {
           std::cerr << "dXdtheta has a large norm" << std::endl;
         }
-        std::cerr << "dXdtheta=";
-        print_tensor(dXdtheta);
-        return dXdtheta;
+        std::cerr << "dxdtheta=";
+        print_tensor(dxdtheta);
+        assert(dxdtheta.dim() == 3 && "dXdtheta should be a 3D tensor"); //{M, Ny, Nd}
+        return dxdtheta;
     }
 
 
@@ -1989,10 +1995,12 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           {
             int indx = accessor[i];
             //Retrieve the dual part of the original matrix
-            auto dAdtheta = dAdp.index({indx, 0});
-            auto dbdtheta = zat0c.d.index({indx});
-            auto x = sol0.index({indx});
-            auto dXdtheta = solve_LUdual(LUl0.index({indx}), Pivotsl0.index({indx}), dAdtheta, dbdtheta, x);
+            auto dAdtheta = dAdp.index({Slice(indx, indx+1), 0});
+            auto dbdtheta = zat0c.d.index({Slice(indx, indx+1)});
+            auto x = sol0.index({Slice(indx, indx+1)});
+            auto dXdtheta = solve_LUdual(LUl0.index({Slice(indx, indx+1)}), 
+                                         Pivotsl0.index({Slice(indx, indx+1)}),
+                                         dAdtheta, dbdtheta, x);
             //Store the dual part of the solution
             sol0qrdual.index_put_({indx}, dXdtheta);
           }
@@ -2069,12 +2077,16 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
               {
                 int indx = accessor[i];
                 //Retrieve the dual part of the original matrix
-                auto dAdtheta = dAdp.index({indx, q1 - 1});
-                auto dbdtheta = tempComplex.d.index({indx}).to(tempComplex.r.device());
-                auto x = sol_qr.index({indx});
-                auto dXdtheta = solve_LUdual(LUlq1.index({indx}), Pivotslq1.index({indx}), dAdtheta, dbdtheta, x);
+                auto dAdtheta = dAdp.index({Slice(indx, indx+1), q1 - 1});
+                auto dbdtheta = tempComplex.d.index({Slice(indx, indx+1)}).to(tempComplex.r.device());
+                auto x = sol_qr.index({Slice(indx, indx+1)});
+                auto dxdtheta = solve_LUdual(LUlq1.index({Slice(indx, indx+1)}), 
+                                             Pivotslq1.index({Slice(indx, indx+1)}), 
+                                             dAdtheta, 
+                                             dbdtheta, 
+                                             x);
                 //Store the dual part of the solution
-                sol_qrdual.index_put_({i}, dXdtheta);
+                sol_qrdual.index_put_({i}, dxdtheta);
               }
             }
             z.index_put_({nzindxs, Slice(), Slice(q2 - 1, q2)}, TensorDual(torch::real(sol_qr), torch::real(sol_qrdual)));
@@ -2176,10 +2188,14 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
         {
           int indx = accessor[i];
           //Retrieve the dual part of the original matrix
-          auto dAdtheta = dAdp.index({indx, 0});
-          auto dbdtheta = f0ptComplex.d.index({indx});
-          auto x = err_vluc.index({indx});
-          auto dXdtheta = solve_LUdual(LUl0.index({indx}), Pivotsl0.index({indx}), dAdtheta, dbdtheta, x);
+          auto dAdtheta = dAdp.index({Slice(indx, indx+1), 0});
+          auto dbdtheta = f0ptComplex.d.index({Slice(indx, indx+1)});
+          auto x = err_vluc.index({Slice(indx, indx+1)});
+          auto dXdtheta = solve_LUdual(LUl0.index({Slice(indx, indx+1)}), 
+                                       Pivotsl0.index({Slice(indx, indx+1)}),
+                                       dAdtheta, 
+                                       dbdtheta, 
+                                       x);
           std::cerr << "dXdtheta=";
           print_tensor(dXdtheta);
           //Store the dual part of the solution
@@ -2220,10 +2236,14 @@ RadauTeD::RadauTeD(OdeFnTypeD OdeFcn, JacFnTypeD JacFn, TensorDual &tspan,
           {
             int indx = accessor[i];
             //Retrieve the dual part of the original matrix
-            auto dAdtheta = dAdp.index({indx, 0});
-            auto dbdtheta = errpComplex.d.index({indx});
-            auto x = errv_outluc.index({indx});
-            auto dXdtheta = solve_LUdual(LUlm1_1.index({indx}), Pivotslm1_1.index({indx}), dAdtheta, dbdtheta, x);
+            auto dAdtheta = dAdp.index({Slice(indx, indx+1), 0});
+            auto dbdtheta = errpComplex.d.index({Slice(indx, indx+1)});
+            auto x = errv_outluc.index({Slice(indx, indx+1)});
+            auto dXdtheta = solve_LUdual(LUlm1_1.index({Slice(indx, indx+1)}), 
+                                         Pivotslm1_1.index({Slice(indx, indx+1)}), 
+                                         dAdtheta, 
+                                         dbdtheta, 
+                                         x);
             std::cerr << "dXdtheta=";
             print_tensor(dXdtheta);
             //Store the dual part of the solution
