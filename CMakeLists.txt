@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(JanusLinearProject)
+project(JanusOdeProject)
 
 # Option to build as header-only
 option(HEADER_ONLY "Build as header-only library" ON)
