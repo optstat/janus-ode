@@ -3,7 +3,41 @@
 #include <torch/torch.h>
 #include <janus/janus_util.hpp>
 #include <functional>
+#include <iostream>
+#include <cvodes/cvodes.h> /* prototypes for CVODES fcts., consts. */
+#include <math.h>
+#include <nvector/nvector_serial.h> /* access to serial N_Vector            */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <tuple> /* access to tuple */
+#include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver      */
+#include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix            */
+#include <kinsol/kinsol.h>            // Main KINSOL header
+
+
 // Utility function to update tensor without in-place operations
+
+//Common macros and constants for CVODES integration
+#define Ith(v, i) NV_Ith_S(v, i - 1) /* i-th vector component i=1..NEQ */
+#define IJth(A, i, j) \
+  SM_ELEMENT_D(A, i - 1, j - 1) /* (i,j)-th matrix component i,j=1..NEQ */
+
+/* Precision specific math function macros */
+
+#if defined(SUNDIALS_DOUBLE_PRECISION)
+#define ABS(x) (fabs((x)))
+#elif defined(SUNDIALS_SINGLE_PRECISION)
+#define ABS(x) (fabsf((x)))
+#elif defined(SUNDIALS_EXTENDED_PRECISION)
+#define ABS(x) (fabsl((x)))
+#endif
+
+/* Problem Constants */
+
+
+#define ZERO SUN_RCONST(0.0)
+#define ONE  SUN_RCONST(1.0)
 
 
 namespace janus 

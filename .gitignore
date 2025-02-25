@@ -30,7 +30,9 @@
 *.exe
 *.out
 *.app
+*.egg*
 out.txt
 
 /build
 /.vscode
+/dist

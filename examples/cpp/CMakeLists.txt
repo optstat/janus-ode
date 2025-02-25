@@ -100,6 +100,7 @@ set(SOURCE_FILE7 radauted_example_reverse.cpp)
 set(SOURCE_FILE8 radauted_vdp_aug_example.cpp)
 set(SOURCE_FILE9 radaut_example.cpp)
 set(SOURCE_FILE10 for_sens_vdp_example.cpp)
+set(SOURCE_FILE11 for_sens_u2d_act_example.cpp)
 
 add_executable(vdphamexample ${SOURCE_FILE1})
 # Link libraries
@@ -152,6 +153,12 @@ add_executable(for_sens_vdp_example ${SOURCE_FILE10})
 #-lsundials_sunmatrixdense  -lsundials_sunlinsoldense
 target_link_libraries(for_sens_vdp_example sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core) 
 
+add_executable(for_sens_u2d_act_example ${SOURCE_FILE11})
+# Link to cvodes
+#-lsundials_sunmatrixdense  -lsundials_sunlinsoldense   
+target_link_libraries(for_sens_u2d_act_example "${TORCH_LIBRARIES}")
+target_link_libraries(for_sens_u2d_act_example sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core)
+
 # Ensure the executable is built when running 'make vdphamexample'
 add_custom_target(create_vdphamexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdphamexample
@@ -195,4 +202,8 @@ add_custom_target(create_radaut_example
 
 add_custom_target(create_for_sens_vdp_example
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target for_sens_vdp_example
+)
+
+add_custom_target(create_for_sens_u2d_act_example
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target for_sens_u2d_act_example
 )

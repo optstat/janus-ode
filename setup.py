@@ -2,11 +2,11 @@ from setuptools import setup
 from torch.utils.cpp_extension import CppExtension, BuildExtension
 
 setup(
-    name='for_sens_vdp',  # the name of the module
+    name='for_sens',  # the name of the module is forward sensitivity
     ext_modules=[
         CppExtension(
-            name='for_sens_vdp_act_fn',               # the module name in Python
-            sources=['for_sens_vdp_act_fn.cpp'],      # our C++ file
+            name='for_sens',               # the module name in Python
+            sources=['./examples/cpp/for_sens_vdp_act_fn.cpp'],      # our C++ file
             include_dirs=[                            #Change to sundials path
                 '/opt/sundials-7.2.1/include/',
             ],  
