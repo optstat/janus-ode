@@ -14,7 +14,7 @@
 #include <sunlinsol/sunlinsol_dense.h> /* access to dense SUNLinearSolver      */
 #include <sunmatrix/sunmatrix_dense.h> /* access to dense SUNMatrix            */
 #include <kinsol/kinsol.h>            // Main KINSOL header
-
+#include <petscksp.h>  // For KSP, Mat, Vec, etc.
 
 // Utility function to update tensor without in-place operations
 
@@ -2415,7 +2415,22 @@ TensorMatDual evalJacDualU(const TensorDual & y,
     return jac;
 }
 
+void print_N_Vector(N_Vector v) {
+    // Get pointer to data
+    sunindextype length = N_VGetLength(v);
+    sunrealtype *data = N_VGetArrayPointer(v);
 
+    if (data == NULL) {
+        printf("Error: Unable to access N_Vector data.\n");
+        return;
+    }
+
+    printf("N_Vector contents:\n");
+    for (sunindextype i = 0; i < length; i++) {
+        printf("%g ", data[i]);
+    }
+    printf("\n");
+}
 
 
 }  //Namespace janus

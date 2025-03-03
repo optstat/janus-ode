@@ -62,20 +62,31 @@ include_directories(${CMAKE_SOURCE_DIR}/examples/cpp)
 
 # Find libtorch
 find_package(Torch REQUIRED)
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+link_directories(${MPI_LIBRARY_PATH})
 
-#Add Petc to the project.  CHANGE THIS TO YOUR PETSC DIRECTORY
-include_directories("/opt/petsc/include")
-link_directories("/opt/petsc/lib")
+
+set(PETSC_DIR "/opt/petsc-3.22.3")
+set(PETSC_ARCH "arch-linux-c-opt")  # Adjust to your architecture
+
+include_directories("${PETSC_DIR}/include" "${PETSC_DIR}/${PETSC_ARCH}/include")
+link_directories("${PETSC_DIR}/${PETSC_ARCH}/lib")
+
+
+# Manually specify PETSc library
+set(PETSC_LIBRARY "${PETSC_DIR}/${PETSC_ARCH}/lib/libpetsc.so")
+
 
 #Add Sundials to the project.  CHANGE THIS TO YOUR SUNDIALS DIRECTORY
-include_directories("/opt/sundials-7.2.1/include")
-link_directories("/opt/sundials-7.2.1/lib")
+include_directories("/opt/sundials/include")
+link_directories("/opt/sundials/lib")
 
 
 
 # Set compiler flags based on the build type
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Debug)
 endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
@@ -101,6 +112,11 @@ set(SOURCE_FILE8 radauted_vdp_aug_example.cpp)
 set(SOURCE_FILE9 radaut_example.cpp)
 set(SOURCE_FILE10 for_sens_vdp_example.cpp)
 set(SOURCE_FILE11 for_sens_u2d_act_example.cpp)
+set(SOURCE_FILE12 vdp_petsc_cvodes_precond_example.cpp)  
+set(SOURCE_FILE13 petsc_vdp_jv_example.cpp)
+set(SOURCE_FILE14 twoDBVP.cpp)
+set(SOURCE_FILE15 vdpBVP.cpp)
+
 
 add_executable(vdphamexample ${SOURCE_FILE1})
 # Link libraries
@@ -159,6 +175,44 @@ add_executable(for_sens_u2d_act_example ${SOURCE_FILE11})
 target_link_libraries(for_sens_u2d_act_example "${TORCH_LIBRARIES}")
 target_link_libraries(for_sens_u2d_act_example sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core)
 
+add_executable(vdp_petsc_cvodes_precond_example ${SOURCE_FILE12})
+# Link to cvodes
+#-lsundials_sunmatrixdense  -lsundials_sunlinsoldense
+target_link_libraries(vdp_petsc_cvodes_precond_example "${TORCH_LIBRARIES}")
+target_link_libraries(vdp_petsc_cvodes_precond_example petsc)
+target_link_libraries(vdp_petsc_cvodes_precond_example sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core)
+
+add_executable(petsc_vdp_jv_example ${SOURCE_FILE13})
+# Add missing libraries for PETSc and MPI
+target_link_libraries(petsc_vdp_jv_example 
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+
+add_executable(twoDBVP ${SOURCE_FILE14})
+# Link libraries 
+target_link_libraries(twoDBVP
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(vdpBVP ${SOURCE_FILE15})
+# Link libraries
+target_link_libraries(vdpBVP
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+
+
+
 # Ensure the executable is built when running 'make vdphamexample'
 add_custom_target(create_vdphamexample
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdphamexample
@@ -206,4 +260,20 @@ add_custom_target(create_for_sens_vdp_example
 
 add_custom_target(create_for_sens_u2d_act_example
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target for_sens_u2d_act_example
+)
+
+add_custom_target(create_vdp_petsc_cvodes_precond_example
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_petsc_cvodes_precond_example
+)
+
+add_custom_target(create_petsc_vdp_jv_example
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target petsc_vdp_jv_example
+)
+
+add_custom_target(create_twoBVP
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target twoDBVP
+)
+
+add_custom_target(create_vdpBVP
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpBVP
 )
