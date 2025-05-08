@@ -114,8 +114,17 @@ set(SOURCE_FILE10 for_sens_vdp_example.cpp)
 set(SOURCE_FILE11 for_sens_u2d_act_example.cpp)
 set(SOURCE_FILE12 vdp_petsc_cvodes_precond_example.cpp)  
 set(SOURCE_FILE13 petsc_vdp_jv_example.cpp)
-set(SOURCE_FILE14 twoDBVP.cpp)
-set(SOURCE_FILE15 vdpBVP.cpp)
+set(SOURCE_FILE14 vdpBVP_transient.cpp)
+set(SOURCE_FILE15 vdpforpmp_transient.cpp)
+set(SOURCE_FILE16 petsc_composite_example.cpp)
+set(SOURCE_FILE17 petsc_ngmres.cpp)
+set(SOURCE_FILE18 linear_multishoot_petsc.cpp)
+set(SOURCE_FILE19 vdp_shell.cpp)
+set(SOURCE_FILE20 vdp_shell_jac.cpp)
+set(SOURCE_FILE21 vdp_beuler.cpp)
+set(SOURCE_FILE22 vdp_bdf_gmres.cpp)
+set(SOURCE_FILE23 multi_shooting_petsc.cpp)
+set(SOURCE_FILE24 vdp_interpolate.cpp)
 
 
 add_executable(vdphamexample ${SOURCE_FILE1})
@@ -192,18 +201,36 @@ target_link_libraries(petsc_vdp_jv_example
 )
 
 
-add_executable(twoDBVP ${SOURCE_FILE14})
+add_executable(vdpBVP_transient ${SOURCE_FILE14})
 # Link libraries 
-target_link_libraries(twoDBVP
+target_link_libraries(vdpBVP_transient
     ${PETSC_LIBRARY}
     ${MPI_LIBRARIES}
     ${TORCH_LIBRARIES}
     sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
 )
 
-add_executable(vdpBVP ${SOURCE_FILE15})
+add_executable(vdpforpmp_transient ${SOURCE_FILE15})
 # Link libraries
-target_link_libraries(vdpBVP
+target_link_libraries(vdpforpmp_transient
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(petsc_composite_example ${SOURCE_FILE16})
+# Link libraries
+target_link_libraries(petsc_composite_example
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(petsc_ngmres ${SOURCE_FILE17})
+# Link libraries
+target_link_libraries(petsc_ngmres
     ${PETSC_LIBRARY}
     ${MPI_LIBRARIES}
     ${TORCH_LIBRARIES}
@@ -211,6 +238,69 @@ target_link_libraries(vdpBVP
 )
 
 
+add_executable(linear_multishoot_petsc ${SOURCE_FILE18})
+# Link libraries
+target_link_libraries(linear_multishoot_petsc
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(vdp_shell ${SOURCE_FILE19})
+# Link libraries
+target_link_libraries(vdp_shell
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(vdp_shell_jac ${SOURCE_FILE20})
+# Link libraries    
+target_link_libraries(vdp_shell_jac
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(vdp_beuler ${SOURCE_FILE21})
+# Link libraries
+target_link_libraries(vdp_beuler
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(vdp_bdf_gmres ${SOURCE_FILE22})
+# Link libraries
+target_link_libraries(vdp_bdf_gmres
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+add_executable(multi_shooting_petsc ${SOURCE_FILE23})
+# Link libraries    
+target_link_libraries(multi_shooting_petsc
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
+
+
+add_executable(vdp_interpolate ${SOURCE_FILE24})
+# Link libraries
+target_link_libraries(vdp_interpolate
+    ${PETSC_LIBRARY}
+    ${MPI_LIBRARIES}
+    ${TORCH_LIBRARIES}
+    sundials_cvodes sundials_nvecserial sundials_sunmatrixdense sundials_sunlinsoldense sundials_core
+)
 
 
 # Ensure the executable is built when running 'make vdphamexample'
@@ -270,10 +360,48 @@ add_custom_target(create_petsc_vdp_jv_example
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target petsc_vdp_jv_example
 )
 
-add_custom_target(create_twoBVP
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target twoDBVP
+add_custom_target(create_vdpBVP_transient
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpBVP_transient
 )
 
-add_custom_target(create_vdpBVP
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpBVP
+add_custom_target(create_vdpforpmp_transient
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdpforpmp_transient
 )
+
+add_custom_target(create_petsc_composite_example
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target petsc_composite_example
+)
+
+add_custom_target(create_petsc_ngmres
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target petsc_ngmres
+)
+
+add_custom_target(create_linear_multishoot_petsc
+COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target linear_multishoot_petsc
+)
+
+add_custom_target(create_vdp_shell
+COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_shell
+)
+
+add_custom_target(create_vdp_shell_jac
+COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_shell_jac
+)
+
+add_custom_target(create_vdp_beuler
+COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_beuler
+)
+
+add_custom_target(create_vdp_bdf_gmres
+COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_bdf_gmres
+)
+
+add_custom_target(create_multi_shooting_petsc
+COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target multi_shooting_petsc
+)
+
+add_custom_target(create_vdp_interpolate
+COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target vdp_interpolate
+)
+
+    

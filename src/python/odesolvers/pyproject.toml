@@ -1,0 +1,13 @@
+[build-system]
+requires      = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name    = "odesolvers"
+version = "0.1.0"
+description = "Implicit stiff integrators (Radau, BDF-2, …)"
+authors = [{name = "Panos Lambrianides"}]
+
+[tool.setuptools.packages.find]
+where = ["src"]          # <-- tell setuptools to look inside src/
+

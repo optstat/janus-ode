@@ -31,8 +31,17 @@
 *.out
 *.app
 *.egg*
-out.txt
 
+#Ouput files
+*.out
+*.out.*
+*log*.txt
+out.txt
+*.npz
+*.pt
+*.csv
+*.png
+__pycache__/
 /build
 /.vscode
 /dist
